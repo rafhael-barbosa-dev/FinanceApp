@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Financeiro Simplificado</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+
+    <main id="app-content">
+        <section id="registro" class="page active">
+            <h2>Adicionar/Editar Registro</h2>
+            <form id="registro-form">
+                
+                <label for="data">Data:</label>
+                <input type="date" id="data" required>
+                
+                <label for="tipo">Tipo:</label>
+                <select id="tipo" required>
+                    <option value="despesa">Despesa</option>
+                    <option value="receita">Receita</option>
+                </select>
+
+                <label for="valor">Valor (R$):</label>
+                <input type="number" id="valor" step="0.01" required>
+
+                <label for="tag_1">Tag Principal:</label>
+                <select id="tag_1" required></select>
+
+                <label for="tag_2">Tag Secundária (Opcional):</label>
+                <select id="tag_2">
+                    <option value="">Nenhuma</option>
+                </select>
+                <label for="forma_pagamento">Forma de Pagamento:</label>
+                <select id="forma_pagamento" required></select>
+                
+                <label for="descricao">Descrição:</label>
+                <input type="text" id="descricao" placeholder="Ex: Conta de luz, Salário do mês">
+
+                <button type="submit" id="btn-salvar">Salvar Registro</button>
+            </form>
+
+            <div id="lista-registros">
+                <h3>Últimos Registros (Visualização Simples)</h3>
+                </div>
+        </section>
+
+        <section id="graficos" class="page">
+            <h2>Resumo e Visualização</h2>
+            
+            <div class="summary-card">
+                <h3>Resumo do Período (Mês Atual)</h3>
+                <p>Gastos Totais: <span id="total-gastos">R$ 0,00</span></p>
+                <p>Receitas Totais: <span id="total-receitas">R$ 0,00</span></p>
+                <p class="saldo">Saldo Líquido: <span id="saldo-liquido">R$ 0,00</span></p>
+            </div>
+
+            <div class="chart-container">
+                <h3>Gastos vs. Metas por Categoria</h3>
+                <canvas id="metasChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h3>Fluxo de Caixa Mensal</h3>
+                <canvas id="fluxoChart"></canvas>
+            </div>
+        </section>
+
+        <section id="tabela" class="page">
+            <h2>Tabela de Registros</h2>
+            <div class="table-container">
+                <table id="registros-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Valor</th>
+                            <th>Tag 1</th>
+                            <th>Pagamento</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <nav id="nav-bar">
+        <a href="#registro" class="nav-item active" data-page="registro"><i class="fas fa-plus-circle"></i> Entrada</a>
+        <a href="#graficos" class="nav-item" data-page="graficos"><i class="fas fa-chart-pie"></i> Resumo</a>
+        <a href="#tabela" class="nav-item" data-page="tabela"><i class="fas fa-table"></i> Tabela</a>
+    </nav>
+
+    <script src="app.js"></script>
+</body>
+</html>

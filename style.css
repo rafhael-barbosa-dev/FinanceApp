@@ -1,0 +1,179 @@
+/* Estilos globais e reset */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f9;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Conteúdo principal com margem para a barra de navegação */
+#app-content {
+    flex-grow: 1;
+    padding: 15px;
+    padding-bottom: 70px; /* Espaço para a barra de navegação fixa */
+}
+
+/* Esconde todas as páginas por padrão */
+.page {
+    display: none;
+    padding: 0;
+}
+
+/* Mostra a página ativa */
+.page.active {
+    display: block;
+}
+
+h2 {
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 5px;
+    margin-bottom: 20px;
+}
+
+/* --- Formulário de Registro --- */
+#registro-form label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+#registro-form input,
+#registro-form select,
+#registro-form button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Garante que padding e borda não aumentem a largura */
+}
+
+#btn-salvar {
+    background-color: #28a745;
+    color: white;
+    font-size: 1.1em;
+    cursor: pointer;
+    border: none;
+}
+
+#btn-salvar:hover {
+    background-color: #218838;
+}
+
+/* --- Cards de Resumo --- */
+.summary-card {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.summary-card h3 {
+    margin-top: 0;
+    color: #007bff;
+}
+
+.summary-card p {
+    margin: 5px 0;
+    font-size: 1.1em;
+}
+
+.summary-card .saldo {
+    font-weight: bold;
+    border-top: 1px dashed #ccc;
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+/* --- Gráficos --- */
+.chart-container {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+/* --- Tabela de Registros --- */
+.table-container {
+    overflow-x: auto; /* Permite rolar a tabela em telas pequenas */
+}
+
+#registros-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+}
+
+#registros-table th, #registros-table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+#registros-table th {
+    background-color: #007bff;
+    color: white;
+    font-weight: normal;
+}
+
+#registros-table tr:hover {
+    background-color: #f0f0ff;
+}
+
+.btn-acao {
+    padding: 5px 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 5px;
+    font-size: 0.9em;
+}
+
+.btn-editar { background-color: #ffc107; color: #333; }
+.btn-remover { background-color: #dc3545; color: white; }
+
+/* --- Barra de Navegação Fixa (Fundo do Celular) --- */
+#nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: #ffffff;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    height: 60px;
+    padding: 5px 0;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #6c757d; /* Cor padrão */
+    font-size: 0.8em;
+    transition: color 0.3s;
+    flex: 1;
+}
+
+.nav-item i {
+    font-size: 1.4em;
+    margin-bottom: 3px;
+}
+
+.nav-item.active {
+    color: #007bff; /* Cor quando ativo */
+    font-weight: bold;
+}
