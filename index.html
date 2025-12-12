@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>App Financeiro Simplificado</title>
     
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script> 
+    <script src="https://apis.google.com/js/api.js?onload=gapiLoaded"></script> 
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script> 
 
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -17,26 +17,23 @@
 <body>
 
     <main id="app-content">
-        <div id="auth-container" style="text-align: center; margin-bottom: 15px; background-color: #fff; padding: 10px; border-radius: 8px;">
-            <button id="authorize_button" style="padding: 10px; border: none; border-radius: 4px; background-color: #007bff; color: white; cursor: pointer; font-size: 1em;">
-                Conectar com Google Sheets
-            </button>
-            <p id="auth-status" style="margin-top: 5px; font-weight: bold; color: #dc3545;">Desconectado</p>
+        <div id="auth-status-container" style="text-align: center; margin-bottom: 15px; padding: 10px; border-radius: 8px;">
+            <p id="auth-status" style="display: none; background-color: #ffc107; color: #333; padding: 8px; border-radius: 4px; font-weight: bold;"></p>
         </div>
 
         <div id="global-filters" style="background-color: #fff; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3>Filtros de Período e Categoria</h3>
             <label for="filter-tag">Filtrar por Tag:</label>
-            <select id="filter-tag" multiple style="min-height: 100px;">
+            <select id="filter-tag" class="mobile-select-full-width">
                 </select>
             
-            <label for="filter-start-date">De (Data Inicial):</label>
-            <input type="date" id="filter-start-date">
+            <label for="filter-start-date" style="margin-top: 10px;">De (Data Inicial):</label>
+            <input type="date" id="filter-start-date" class="mobile-input-full-width">
             
-            <label for="filter-end-date">Até (Data Final):</label>
-            <input type="date" id="filter-end-date">
+            <label for="filter-end-date" style="margin-top: 10px;">Até (Data Final):</label>
+            <input type="date" id="filter-end-date" class="mobile-input-full-width">
 
-            <button id="apply-filters" style="margin-top: 10px; background-color: #007bff; color: white; width: 100%; padding: 10px; border: none; border-radius: 4px;">Aplicar Filtros</button>
+            <button id="apply-filters" style="margin-top: 15px; background-color: #007bff; color: white; width: 100%; padding: 10px; border: none; border-radius: 4px;">Aplicar Filtros</button>
         </div>
 
         <section id="graficos" class="page active">

@@ -177,3 +177,23 @@ h2 {
     color: #007bff; /* Cor quando ativo */
     font-weight: bold;
 }
+
+.mobile-select-full-width, 
+.mobile-input-full-width,
+#global-filters select,
+#global-filters input[type="date"] {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 5px; /* Reduz margem para compactar */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Fundamental para o layout em 100% */
+}
+
+/* Garante que o rótulo do filtro fique agradável */
+#global-filters label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}

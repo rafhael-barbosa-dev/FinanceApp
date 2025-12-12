@@ -14,42 +14,58 @@ const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v
 let isAuthorized = false; 
 let gisInited = false;
 let tokenClient; 
-let allRecords = []; // Armazena TODOS os registros lidos da planilha
-let currentRecords = []; // Armazena os registros FILTRADOS
+let allRecords = []; 
+let currentRecords = []; 
 let currentMetas = []; 
 let currentTags = []; 
 let currentFormasPagamento = []; 
 
 // Variáveis de Estado do Filtro
 let filterState = {
-    selectedTags: [],
+    selectedTag: "ALL", // Agora é uma única tag ou "ALL"
     startDate: null,
     endDate: null
 };
 
-// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO ---
+// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (REVISADA PARA CONEXÃO AUTOMÁTICA) ---
 
 window.gapiLoaded = () => {
     gapi.load('client', initializeGapiClient);
 };
 
 window.gisLoaded = () => {
+    // Configura o cliente de autenticação
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
+        // Chama o callback quando o token é recebido (sucesso ou falha)
         callback: (tokenResponse) => {
             if (tokenResponse && tokenResponse.access_token) {
+                // Sucesso: seta o token e continua
                 gapi.client.setToken(tokenResponse);
                 isAuthorized = true;
-                document.getElementById('auth-status').textContent = 'Conectado';
+                // Oculta a área de status de login
+                const authStatus = document.getElementById('auth-status');
+                if (authStatus) authStatus.style.display = 'none';
                 loadAndRenderData(); 
             } else {
+                // Falha: permite nova tentativa ou mostra status
                 isAuthorized = false;
-                document.getElementById('auth-status').textContent = 'Desconectado';
-                console.error('Falha ao obter token.');
+                const authStatus = document.getElementById('auth-status');
+                if (authStatus) {
+                    authStatus.textContent = 'Clique para Conectar';
+                    authStatus.style.cursor = 'pointer';
+                    authStatus.onclick = handleAuthClick; // Adiciona o clique de volta
+                    authStatus.style.display = 'block'; // Mostra o status para que o usuário saiba
+                }
+                // Tenta carregar dados básicos (tags/formas de pagamento) mesmo sem autorização
+                loadAndRenderData();
             }
         },
     });
+
+    // Tenta obter o token imediatamente (modo silencioso)
+    tokenClient.requestAccessToken({prompt: ''});
 };
 
 function initializeGapiClient() {
@@ -57,20 +73,16 @@ function initializeGapiClient() {
         discoveryDocs: DISCOVERY_DOCS,
     }).then(() => {
         gisInited = true;
-        
-        const authButton = document.getElementById('authorize_button');
-        if (authButton) authButton.onclick = handleAuthClick;
-        
-        loadAndRenderData(); 
-
     }, (error) => {
         console.error('Erro ao inicializar gapi.client:', error);
-        document.getElementById('auth-status').textContent = `Erro: ${error.message}`;
+        const authStatus = document.getElementById('auth-status');
+        if (authStatus) authStatus.textContent = `Erro de Config: ${error.message}`;
     });
 }
 
 function handleAuthClick() {
     if (gisInited && tokenClient) {
+        // Solicita o token de acesso (inicia o fluxo de login/pop-up)
         tokenClient.requestAccessToken();
     } else {
         alert('A API do Google ainda não foi inicializada. Tente novamente em instantes.');
@@ -82,7 +94,6 @@ function handleAuthClick() {
 document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupFilterListeners();
-    // O formulário de registro só é configurado depois que as tags são carregadas
 });
 
 function populateSelect(elementId, optionsArray, includeNone = false) {
@@ -91,18 +102,19 @@ function populateSelect(elementId, optionsArray, includeNone = false) {
 
     select.innerHTML = '';
     
-    if (includeNone && !select.multiple) {
-        const defaultOption = document.createElement('option');
-        defaultOption.value = "";
-        defaultOption.textContent = "Nenhuma";
-        select.appendChild(defaultOption);
-    }
-
-    if (select.multiple) {
+    // Adiciona "Todas as Tags" para o filtro (apenas Tag 1 é usada no filtro)
+    if (elementId === 'filter-tag') {
         const allOption = document.createElement('option');
         allOption.value = "ALL";
         allOption.textContent = "Todas as Tags";
         select.appendChild(allOption);
+    }
+
+    if (includeNone && elementId !== 'filter-tag') { // Adiciona "Nenhuma" apenas nas tags 2/3/4
+        const defaultOption = document.createElement('option');
+        defaultOption.value = "";
+        defaultOption.textContent = "Nenhuma";
+        select.appendChild(defaultOption);
     }
 
     optionsArray.forEach(option => {
@@ -130,7 +142,7 @@ function setupNavigation() {
             pages.forEach(page => page.classList.remove('active'));
             document.getElementById(targetPage).classList.add('active');
             
-            // Re-renderiza a página ativa
+            // O filtro deve ser aplicado novamente (chamado por applyFilters())
             if (targetPage === 'graficos') {
                 renderCharts();
             }
@@ -141,7 +153,7 @@ function setupNavigation() {
     });
 }
 
-// --- 4. LÓGICA DE FILTRAGEM ---
+// --- 4. LÓGICA DE FILTRAGEM (REVISADA PARA TAG ÚNICA) ---
 
 function setupFilterListeners() {
     const applyButton = document.getElementById('apply-filters');
@@ -152,39 +164,16 @@ function setupFilterListeners() {
         });
     }
 
-    const tagSelect = document.getElementById('filter-tag');
-    if (tagSelect) {
-        restoreFilterState();
-        tagSelect.addEventListener('change', () => {
-            const options = Array.from(tagSelect.options);
-            const selectedOptions = options.filter(opt => opt.selected);
-            const allOption = options.find(opt => opt.value === 'ALL');
-
-            if (selectedOptions.length > 1 && allOption && allOption.selected) {
-                // Se 'ALL' foi selecionado junto com outros, deseleciona 'ALL'
-                allOption.selected = false;
-            } else if (selectedOptions.length === 0 && allOption) {
-                 // Se nada foi selecionado, seleciona 'ALL' por padrão
-                 allOption.selected = true;
-            }
-        });
-    }
+    // Inicializa os inputs e restaura o estado salvo
+    restoreFilterState();
 }
 
 function saveFilterState() {
+    // Agora o filtro de tag é single-select
     const tagSelect = document.getElementById('filter-tag');
     
-    let selectedTags = Array.from(tagSelect.selectedOptions)
-                            .map(option => option.value)
-                            .filter(value => value !== 'ALL');
-    
-    // Se a opção 'ALL' estiver selecionada (ou se selectedTags estiver vazio), o filtro é por todas.
-    if (tagSelect.querySelector('option[value="ALL"]').selected && selectedTags.length === 0) {
-        selectedTags = []; 
-    }
-    
     filterState = {
-        selectedTags: selectedTags,
+        selectedTag: tagSelect.value, // Salva apenas o valor único
         startDate: document.getElementById('filter-start-date').value,
         endDate: document.getElementById('filter-end-date').value
     };
@@ -195,22 +184,16 @@ function saveFilterState() {
 function restoreFilterState() {
     const savedState = localStorage.getItem('financeAppFilter');
     if (savedState) {
-        filterState = JSON.parse(savedState);
+        const parsedState = JSON.parse(savedState);
+        // Garante que o estado seja restaurado
+        filterState.selectedTag = parsedState.selectedTag || "ALL"; 
+        filterState.startDate = parsedState.startDate || null;
+        filterState.endDate = parsedState.endDate || null;
     }
     
     const tagSelect = document.getElementById('filter-tag');
     if (tagSelect) {
-        Array.from(tagSelect.options).forEach(option => option.selected = false);
-        
-        if (filterState.selectedTags.length === 0) {
-            const allOption = tagSelect.querySelector('option[value="ALL"]');
-            if (allOption) allOption.selected = true;
-        } else {
-            filterState.selectedTags.forEach(tag => {
-                const option = tagSelect.querySelector(`option[value="${tag}"]`);
-                if (option) option.selected = true;
-            });
-        }
+        tagSelect.value = filterState.selectedTag;
     }
     
     document.getElementById('filter-start-date').value = filterState.startDate || '';
@@ -220,14 +203,14 @@ function restoreFilterState() {
 function applyFilters() {
     let filteredData = allRecords; 
 
-    // 1. Filtrar por Tags
-    if (filterState.selectedTags.length > 0) {
+    // 1. Filtrar por Tags (Agora com Tag Única/ALL)
+    if (filterState.selectedTag !== "ALL" && filterState.selectedTag !== "") {
         filteredData = filteredData.filter(record => 
-            filterState.selectedTags.includes(record.tag_1)
+            record.tag_1 === filterState.selectedTag
         );
     }
 
-    // 2. Filtrar por Data
+    // 2. Filtrar por Data (Mantido)
     const start = filterState.startDate ? new Date(filterState.startDate + 'T00:00:00') : null;
     const end = filterState.endDate ? new Date(filterState.endDate + 'T23:59:59') : null;
 
@@ -237,12 +220,8 @@ function applyFilters() {
             let passesStart = true;
             let passesEnd = true;
 
-            if (start) {
-                passesStart = recordDate >= start;
-            }
-            if (end) {
-                passesEnd = recordDate <= end;
-            }
+            if (start) { passesStart = recordDate >= start; }
+            if (end) { passesEnd = recordDate <= end; }
             return passesStart && passesEnd;
         });
     }
@@ -265,7 +244,7 @@ function applyFilters() {
 
 async function readSheetData(range) {
     if (!isAuthorized) {
-        console.warn("Não autorizado para ler dados. Por favor, conecte-se.");
+        // Se não autorizado, retorna vazio, mas não exibe o erro
         return [];
     }
     
@@ -277,32 +256,40 @@ async function readSheetData(range) {
         return response.result.values || [];
         
     } catch (err) {
-        console.error('Erro ao ler dados da planilha:', err);
+        console.error('Erro ao ler dados da planilha. Verifique o SPREADSHEET_ID e permissões de compartilhamento.', err);
+        // Se der erro aqui (permissão ou ID), o app continua a falhar
+        const authStatus = document.getElementById('auth-status');
+        if (authStatus) {
+             authStatus.textContent = 'ERRO API! Clicar para tentar login.';
+             authStatus.style.cursor = 'pointer';
+             authStatus.onclick = handleAuthClick;
+             authStatus.style.display = 'block';
+        }
         return [];
     }
 }
 
 async function loadAndRenderData() {
     // 1. Carrega Organizadores (A:C)
-    // A=Tag, B=Forma de pagamento, C=Tipo
+    // Se o usuário não estiver autenticado, tentamos carregar isso para que pelo menos os filtros/dropdowns funcionem
     const orgData = await readSheetData('Organizadores!A:C');
     if (orgData.length > 1) {
-        // Tag está em row[0]
+        // A=Tag, B=Forma de pagamento, C=Tipo
         currentTags = orgData.slice(1).map(row => row[0]).filter(t => t && t !== 'Null' && t !== 'Recebimentos');
-        // Forma de pagamento está em row[1]
         currentFormasPagamento = orgData.slice(1).map(row => row[1]).filter(f => f);
         currentFormasPagamento = [...new Set(currentFormasPagamento)];
 
-        // Popular selects do formulário e do filtro
+        // Popular selects
         populateSelect('tag_1', currentTags);
         populateSelect('tag_2', currentTags, true);
         document.getElementById('tag_2').value = "";
         populateSelect('forma_pagamento', currentFormasPagamento);
         
+        // NOVO: Popula o multiselect de filtros
         populateSelect('filter-tag', currentTags);
         restoreFilterState(); 
         
-        // Configura o formulário APÓS o carregamento das tags
+        // Configura o formulário
         const form = document.getElementById('registro-form');
         if (form) {
             form.removeEventListener('submit', handleFormSubmit);
@@ -310,6 +297,7 @@ async function loadAndRenderData() {
         }
     }
     
+    // Se não estiver autorizado neste ponto, não podemos carregar Registros e Metas
     if (!isAuthorized) {
         updateSummaryUI({ totalGastos: 0, totalReceitas: 0, saldoLiquido: 0 });
         return;
@@ -321,21 +309,21 @@ async function loadAndRenderData() {
     
     if (registroData.length > 1) {
         allRecords = registroData.slice(1).map((row, index) => {
-            const valorString = row[1] || 'R$ 0,00'; // Valor agora é row[1]
+            const valorString = row[1] || 'R$ 0,00'; 
             const valorNumerico = parseFloat(valorString.replace('R$', '').replace('.', '').replace(',', '.').trim() || 0);
             
             return {
                 sheetRowIndex: index + 2, 
-                data: row[0], // Data agora é row[0]
+                data: row[0], 
                 valor: valorNumerico,
-                tag_1: row[2], // Tag 1 agora é row[2]
+                tag_1: row[2], 
                 tag_2: row[3] || '',
                 descricao: row[6] || '',
-                forma_pagamento: row[7], // Pagamento agora é row[7]
-                tipo: row[8] ? row[8].toLowerCase() : 'despesa', // Tipo agora é row[8]
+                forma_pagamento: row[7], 
+                tipo: row[8] ? row[8].toLowerCase() : 'despesa', 
             };
         });
-        
+
         // 3. Carrega Metas (A:C)
         const metasData = await readSheetData('Metas!A:C');
         if (metasData.length > 1) {
@@ -346,6 +334,7 @@ async function loadAndRenderData() {
             }));
         }
 
+        // Aplica os filtros persistentes e renderiza a tela principal (Resumo)
         applyFilters(); 
     } else {
         allRecords = [];
@@ -354,8 +343,8 @@ async function loadAndRenderData() {
     }
 }
 
-// --- 6. FUNÇÕES DE ESCRITA (POST/PUT/DELETE) DA API DO GOOGLE SHEETS ---
-
+// --- 6. FUNÇÕES DE ESCRITA (Mantidas) ---
+// ... (saveRecordToGoogleSheets, handleFormSubmit, editRecord, removeRecord mantidas do código anterior)
 async function saveRecordToGoogleSheets(data) {
     if (!isAuthorized) {
         alert("Não autorizado. Conecte-se antes de salvar.");
@@ -422,7 +411,6 @@ async function handleFormSubmit(event) {
     }
 }
 
-// Funções de Ação (Ainda dependem de implementação complexa)
 function editRecord(sheetRowIndex) {
     alert(`EDITAR: A funcionalidade de Edição (sheets.spreadsheets.values.update) ainda não foi implementada. Linha da planilha: ${sheetRowIndex}`);
 }
@@ -434,8 +422,8 @@ async function removeRecord(sheetRowIndex) {
 }
 
 
-// --- 7. LÓGICA DE CÁLCULO DE RESUMO ---
-
+// --- 7, 8, 9. RESUMO, GRÁFICOS, TABELA (Mantidas) ---
+// ... (calculateSummary, updateSummaryUI, renderCharts, renderTable mantidas)
 function calculateSummary(data) {
     let totalGastos = 0;
     let totalReceitas = 0;
@@ -469,8 +457,6 @@ function updateSummaryUI(resumo) {
     saldoElement.style.color = resumo.saldoLiquido >= 0 ? '#28a745' : '#dc3545'; 
 }
 
-
-// --- 8. RENDERIZAÇÃO DE GRÁFICOS (Chart.js) ---
 let metasChart, fluxoChart;
 
 function renderCharts() {
@@ -479,7 +465,6 @@ function renderCharts() {
 
     const resumo = calculateSummary(currentRecords);
     
-    // A. Gráfico de Metas vs. Gastos (Barra)
     const categoriasComMetas = currentMetas.map(m => m.tag);
     const labels = [];
     const dadosGastos = [];
@@ -518,7 +503,6 @@ function renderCharts() {
         }
     });
 
-    // B. Gráfico de Fluxo de Caixa (Pizza/Donut)
     fluxoChart = new Chart(document.getElementById('fluxoChart').getContext('2d'), {
         type: 'doughnut',
         data: {
@@ -540,12 +524,10 @@ function renderCharts() {
     });
 }
 
-// --- 9. RENDERIZAÇÃO DA TABELA (Visualização) ---
 function renderTable(data) {
     const tbody = document.querySelector('#registros-table tbody');
     tbody.innerHTML = ''; 
 
-    // Reverte a ordem para mostrar os mais recentes primeiro
     data.slice().reverse().forEach((registro) => {
         const row = tbody.insertRow();
         
