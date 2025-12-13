@@ -1,16 +1,10 @@
-// ====================================================================
-// --- 1. CONFIGURAÇÃO DA API GOOGLE SHEETS (SUBSTITUA ESTES VALORES!) ---
-// ====================================================================
-
-// ⚠️ SUBSTITUA PELO ID DA SUA PLANILHA (o que está na URL)
-const SPREADSHEET_ID = '149RuLSboaZ-thzioPCpDxuQINU38JQarmkt4hT6fsys'; 
-// ⚠️ SUBSTITUA PELO SEU CLIENT ID OAUTH (do Google Cloud Console)
-const CLIENT_ID = '238812906130-opesdsnklslqtrb22bk9cpnb5f52jlih.apps.googleusercontent.com'; 
+const SPREADSHEET_ID = '149RuLSboaZ-thzioPCpDxuQINU38JQarmkt4hT6fsys'; // SEU ID DA PLANILHA
+const CLIENT_ID = '238812906130-opesdsnklslqtrb22bk9cpnb5f52jlih.apps.googleusercontent.com'; // SEU CLIENT ID
 
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets'; 
 const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
 
-// Variáveis de estado da aplicação
+// Variáveis de estado
 let isAuthorized = false; 
 let gisInited = false;
 let tokenClient; 
@@ -20,46 +14,39 @@ let currentMetas = [];
 let currentTags = []; 
 let currentFormasPagamento = []; 
 
-// Variáveis de Estado do Filtro
 let filterState = {
-    selectedTag: "ALL", // Agora é uma única tag ou "ALL"
+    selectedTag: "ALL", 
     startDate: null,
     endDate: null
 };
 
-// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (REVISADA PARA CONEXÃO AUTOMÁTICA) ---
+// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (FLUXO SILENCIOSO CORRIGIDO) ---
 
-window.gapiLoaded = () => {
-    gapi.load('client', initializeGapiClient);
-};
+window.gapiLoaded = () => { gapi.load('client', initializeGapiClient); };
 
 window.gisLoaded = () => {
-    // Configura o cliente de autenticação
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
         // Chama o callback quando o token é recebido (sucesso ou falha)
         callback: (tokenResponse) => {
+            const authStatus = document.getElementById('auth-status');
+            
             if (tokenResponse && tokenResponse.access_token) {
-                // Sucesso: seta o token e continua
                 gapi.client.setToken(tokenResponse);
                 isAuthorized = true;
-                // Oculta a área de status de login
-                const authStatus = document.getElementById('auth-status');
-                if (authStatus) authStatus.style.display = 'none';
+                if (authStatus) authStatus.style.display = 'none'; // Sucesso: esconde status
                 loadAndRenderData(); 
             } else {
-                // Falha: permite nova tentativa ou mostra status
+                // Falha: permite nova tentativa e mostra o status de alerta
                 isAuthorized = false;
-                const authStatus = document.getElementById('auth-status');
                 if (authStatus) {
-                    authStatus.textContent = 'Clique para Conectar';
+                    authStatus.textContent = 'ERRO DE CONEXÃO. Clique para logar no Google.';
                     authStatus.style.cursor = 'pointer';
-                    authStatus.onclick = handleAuthClick; // Adiciona o clique de volta
-                    authStatus.style.display = 'block'; // Mostra o status para que o usuário saiba
+                    authStatus.onclick = handleAuthClick; 
+                    authStatus.style.display = 'block';
                 }
-                // Tenta carregar dados básicos (tags/formas de pagamento) mesmo sem autorização
-                loadAndRenderData();
+                loadAndRenderData(); // Tenta carregar tags/formas de pagamento mesmo sem autorização
             }
         },
     });
@@ -75,17 +62,14 @@ function initializeGapiClient() {
         gisInited = true;
     }, (error) => {
         console.error('Erro ao inicializar gapi.client:', error);
-        const authStatus = document.getElementById('auth-status');
-        if (authStatus) authStatus.textContent = `Erro de Config: ${error.message}`;
     });
 }
 
 function handleAuthClick() {
     if (gisInited && tokenClient) {
-        // Solicita o token de acesso (inicia o fluxo de login/pop-up)
         tokenClient.requestAccessToken();
     } else {
-        alert('A API do Google ainda não foi inicializada. Tente novamente em instantes.');
+        alert('A API do Google ainda não foi inicializada.');
     }
 }
 
@@ -102,7 +86,6 @@ function populateSelect(elementId, optionsArray, includeNone = false) {
 
     select.innerHTML = '';
     
-    // Adiciona "Todas as Tags" para o filtro (apenas Tag 1 é usada no filtro)
     if (elementId === 'filter-tag') {
         const allOption = document.createElement('option');
         allOption.value = "ALL";
@@ -110,7 +93,7 @@ function populateSelect(elementId, optionsArray, includeNone = false) {
         select.appendChild(allOption);
     }
 
-    if (includeNone && elementId !== 'filter-tag') { // Adiciona "Nenhuma" apenas nas tags 2/3/4
+    if (includeNone && elementId !== 'filter-tag') {
         const defaultOption = document.createElement('option');
         defaultOption.value = "";
         defaultOption.textContent = "Nenhuma";
@@ -142,7 +125,6 @@ function setupNavigation() {
             pages.forEach(page => page.classList.remove('active'));
             document.getElementById(targetPage).classList.add('active');
             
-            // O filtro deve ser aplicado novamente (chamado por applyFilters())
             if (targetPage === 'graficos') {
                 renderCharts();
             }
@@ -153,7 +135,7 @@ function setupNavigation() {
     });
 }
 
-// --- 4. LÓGICA DE FILTRAGEM (REVISADA PARA TAG ÚNICA) ---
+// --- 4. LÓGICA DE FILTRAGEM ---
 
 function setupFilterListeners() {
     const applyButton = document.getElementById('apply-filters');
@@ -163,17 +145,14 @@ function setupFilterListeners() {
             applyFilters();
         });
     }
-
-    // Inicializa os inputs e restaura o estado salvo
     restoreFilterState();
 }
 
 function saveFilterState() {
-    // Agora o filtro de tag é single-select
     const tagSelect = document.getElementById('filter-tag');
     
     filterState = {
-        selectedTag: tagSelect.value, // Salva apenas o valor único
+        selectedTag: tagSelect.value, 
         startDate: document.getElementById('filter-start-date').value,
         endDate: document.getElementById('filter-end-date').value
     };
@@ -185,7 +164,6 @@ function restoreFilterState() {
     const savedState = localStorage.getItem('financeAppFilter');
     if (savedState) {
         const parsedState = JSON.parse(savedState);
-        // Garante que o estado seja restaurado
         filterState.selectedTag = parsedState.selectedTag || "ALL"; 
         filterState.startDate = parsedState.startDate || null;
         filterState.endDate = parsedState.endDate || null;
@@ -203,14 +181,12 @@ function restoreFilterState() {
 function applyFilters() {
     let filteredData = allRecords; 
 
-    // 1. Filtrar por Tags (Agora com Tag Única/ALL)
     if (filterState.selectedTag !== "ALL" && filterState.selectedTag !== "") {
         filteredData = filteredData.filter(record => 
             record.tag_1 === filterState.selectedTag
         );
     }
 
-    // 2. Filtrar por Data (Mantido)
     const start = filterState.startDate ? new Date(filterState.startDate + 'T00:00:00') : null;
     const end = filterState.endDate ? new Date(filterState.endDate + 'T23:59:59') : null;
 
@@ -228,7 +204,6 @@ function applyFilters() {
 
     currentRecords = filteredData; 
     
-    // 3. Renderizar o conteúdo da aba ativa
     const activePage = document.querySelector('.page.active').id;
     const resumo = calculateSummary(currentRecords);
     updateSummaryUI(resumo);
@@ -244,7 +219,6 @@ function applyFilters() {
 
 async function readSheetData(range) {
     if (!isAuthorized) {
-        // Se não autorizado, retorna vazio, mas não exibe o erro
         return [];
     }
     
@@ -256,14 +230,15 @@ async function readSheetData(range) {
         return response.result.values || [];
         
     } catch (err) {
-        console.error('Erro ao ler dados da planilha. Verifique o SPREADSHEET_ID e permissões de compartilhamento.', err);
-        // Se der erro aqui (permissão ou ID), o app continua a falhar
+        console.error('Erro ao ler dados da planilha:', err.result.error.message);
+        
+        // Exibe erro na interface para o usuário
         const authStatus = document.getElementById('auth-status');
         if (authStatus) {
-             authStatus.textContent = 'ERRO API! Clicar para tentar login.';
-             authStatus.style.cursor = 'pointer';
-             authStatus.onclick = handleAuthClick;
-             authStatus.style.display = 'block';
+            authStatus.textContent = `ERRO API: ${err.result.error.message}. Clique para tentar login.`;
+            authStatus.style.cursor = 'pointer';
+            authStatus.onclick = handleAuthClick;
+            authStatus.style.display = 'block';
         }
         return [];
     }
@@ -271,10 +246,9 @@ async function readSheetData(range) {
 
 async function loadAndRenderData() {
     // 1. Carrega Organizadores (A:C)
-    // Se o usuário não estiver autenticado, tentamos carregar isso para que pelo menos os filtros/dropdowns funcionem
+    // A=Tag, B=Forma de pagamento, C=Tipo
     const orgData = await readSheetData('Organizadores!A:C');
     if (orgData.length > 1) {
-        // A=Tag, B=Forma de pagamento, C=Tipo
         currentTags = orgData.slice(1).map(row => row[0]).filter(t => t && t !== 'Null' && t !== 'Recebimentos');
         currentFormasPagamento = orgData.slice(1).map(row => row[1]).filter(f => f);
         currentFormasPagamento = [...new Set(currentFormasPagamento)];
@@ -285,11 +259,9 @@ async function loadAndRenderData() {
         document.getElementById('tag_2').value = "";
         populateSelect('forma_pagamento', currentFormasPagamento);
         
-        // NOVO: Popula o multiselect de filtros
         populateSelect('filter-tag', currentTags);
         restoreFilterState(); 
         
-        // Configura o formulário
         const form = document.getElementById('registro-form');
         if (form) {
             form.removeEventListener('submit', handleFormSubmit);
@@ -297,7 +269,7 @@ async function loadAndRenderData() {
         }
     }
     
-    // Se não estiver autorizado neste ponto, não podemos carregar Registros e Metas
+    // Se não estiver autorizado, para aqui
     if (!isAuthorized) {
         updateSummaryUI({ totalGastos: 0, totalReceitas: 0, saldoLiquido: 0 });
         return;
@@ -314,13 +286,13 @@ async function loadAndRenderData() {
             
             return {
                 sheetRowIndex: index + 2, 
-                data: row[0], 
+                data: row[0], // row[0] é a Data
                 valor: valorNumerico,
-                tag_1: row[2], 
+                tag_1: row[2], // row[2] é a Tag_1
                 tag_2: row[3] || '',
                 descricao: row[6] || '',
                 forma_pagamento: row[7], 
-                tipo: row[8] ? row[8].toLowerCase() : 'despesa', 
+                tipo: row[8] ? row[8].toLowerCase() : 'despesa', // row[8] é o Tipo
             };
         });
 
@@ -334,7 +306,6 @@ async function loadAndRenderData() {
             }));
         }
 
-        // Aplica os filtros persistentes e renderiza a tela principal (Resumo)
         applyFilters(); 
     } else {
         allRecords = [];
@@ -343,15 +314,15 @@ async function loadAndRenderData() {
     }
 }
 
-// --- 6. FUNÇÕES DE ESCRITA (Mantidas) ---
-// ... (saveRecordToGoogleSheets, handleFormSubmit, editRecord, removeRecord mantidas do código anterior)
+// --- 6. FUNÇÕES DE ESCRITA (Mantidas e verificadas com sua estrutura) ---
+
 async function saveRecordToGoogleSheets(data) {
     if (!isAuthorized) {
         alert("Não autorizado. Conecte-se antes de salvar.");
         return false;
     }
     
-    // Ordem das colunas na planilha: Data; Valor; Tag_1; Tag_2; Tag_3; Tag_4; Descrição; Forma do pagamento; Tipo
+    // Ordem das colunas: Data; Valor; Tag_1; Tag_2; Tag_3; Tag_4; Descrição; Forma do pagamento; Tipo
     const rowData = [
         data.data, 
         `R$ ${data.valor}`, 
@@ -423,7 +394,6 @@ async function removeRecord(sheetRowIndex) {
 
 
 // --- 7, 8, 9. RESUMO, GRÁFICOS, TABELA (Mantidas) ---
-// ... (calculateSummary, updateSummaryUI, renderCharts, renderTable mantidas)
 function calculateSummary(data) {
     let totalGastos = 0;
     let totalReceitas = 0;
