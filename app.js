@@ -20,33 +20,35 @@ let filterState = {
     endDate: null
 };
 
-// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (FLUXO SILENCIOSO CORRIGIDO) ---
+// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (COM LOGS DE DIAGNÓSTICO) ---
 
 window.gapiLoaded = () => { gapi.load('client', initializeGapiClient); };
 
 window.gisLoaded = () => {
+    console.log("LOG A: GIS carregado e iniciando token client.");
+    
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
-        // Chama o callback quando o token é recebido (sucesso ou falha)
         callback: (tokenResponse) => {
             const authStatus = document.getElementById('auth-status');
             
             if (tokenResponse && tokenResponse.access_token) {
+                console.log("LOG B: Autorização BEM-SUCEDIDA! isAuthorized = true.");
                 gapi.client.setToken(tokenResponse);
                 isAuthorized = true;
-                if (authStatus) authStatus.style.display = 'none'; // Sucesso: esconde status
+                if (authStatus) authStatus.style.display = 'none'; 
                 loadAndRenderData(); 
             } else {
-                // Falha: permite nova tentativa e mostra o status de alerta
+                console.log("LOG B: Autorização FALHOU/NEGADA.");
                 isAuthorized = false;
                 if (authStatus) {
                     authStatus.textContent = 'ERRO DE CONEXÃO. Clique para logar no Google.';
                     authStatus.style.cursor = 'pointer';
-                    authStatus.onclick = handleAuthClick; 
+                    authStatus.onclick = handleAuthClick;
                     authStatus.style.display = 'block';
                 }
-                loadAndRenderData(); // Tenta carregar tags/formas de pagamento mesmo sem autorização
+                loadAndRenderData(); 
             }
         },
     });
@@ -67,16 +69,14 @@ function initializeGapiClient() {
 
 function handleAuthClick() {
     if (gisInited && tokenClient) {
-        // NOVO: Usamos 'consent' e 'select_account'. 
-        // Isso força o Google a gerar um token de atualização e garantir
-        // que a sessão persista nas próximas vezes.
-        tokenClient.requestAccessToken({prompt: 'consent select_account'});
+        // ESSA É A CHAVE DA PERSISTÊNCIA: Força o consentimento e a seleção de conta.
+        tokenClient.requestAccessToken({prompt: 'consent select_account'}); 
     } else {
-        alert('A API do Google ainda não foi inicializada. Tente novamente em instantes.');
+        alert('A API do Google ainda não foi inicializada.');
     }
 }
 
-// --- 3. FUNÇÕES DE SUPORTE E INICIALIZAÇÃO DO DOM ---
+// --- 3. FUNÇÕES DE SUPORTE E INICIALIZAÇÃO DO DOM (Mantidas) ---
 
 document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
@@ -138,7 +138,7 @@ function setupNavigation() {
     });
 }
 
-// --- 4. LÓGICA DE FILTRAGEM ---
+// --- 4. LÓGICA DE FILTRAGEM (Mantida) ---
 
 function setupFilterListeners() {
     const applyButton = document.getElementById('apply-filters');
@@ -218,27 +218,31 @@ function applyFilters() {
     }
 }
 
-// --- 5. FUNÇÕES DE LEITURA (GET) DA API DO GOOGLE SHEETS ---
+// --- 5. FUNÇÕES DE LEITURA (GET) DA API DO GOOGLE SHEETS COM DIAGNÓSTICO) ---
 
 async function readSheetData(range) {
     if (!isAuthorized) {
         return [];
     }
     
+    console.log(`LOG C: Tentando ler a aba: ${range}`);
+    
     try {
         const response = await gapi.client.sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: range,
         });
+        
+        console.log(`LOG D: Leitura de ${range} BEM-SUCEDIDA! ${response.result.values ? response.result.values.length : 0} linhas lidas.`);
         return response.result.values || [];
         
     } catch (err) {
-        console.error('Erro ao ler dados da planilha:', err.result.error.message);
+        // Se este erro ocorrer, significa que a permissão foi negada APÓS o login (GCP/Compartilhamento) ou URL/ID incorreto.
+        console.error('ERRO API DE LEITURA (FAILURE):', err);
         
-        // Exibe erro na interface para o usuário
         const authStatus = document.getElementById('auth-status');
         if (authStatus) {
-            authStatus.textContent = `ERRO API: ${err.result.error.message}. Clique para tentar login.`;
+            authStatus.textContent = `ERRO API! Verifique o NOME DA ABA e o COMPARTILHAMENTO da planilha.`;
             authStatus.style.cursor = 'pointer';
             authStatus.onclick = handleAuthClick;
             authStatus.style.display = 'block';
@@ -248,15 +252,16 @@ async function readSheetData(range) {
 }
 
 async function loadAndRenderData() {
+    console.log("LOG E: Iniciando loadAndRenderData."); 
+    
     // 1. Carrega Organizadores (A:C)
-    // A=Tag, B=Forma de pagamento, C=Tipo
     const orgData = await readSheetData('Organizadores!A:C');
     if (orgData.length > 1) {
+        // A=Tag, B=Forma de pagamento, C=Tipo
         currentTags = orgData.slice(1).map(row => row[0]).filter(t => t && t !== 'Null' && t !== 'Recebimentos');
         currentFormasPagamento = orgData.slice(1).map(row => row[1]).filter(f => f);
         currentFormasPagamento = [...new Set(currentFormasPagamento)];
 
-        // Popular selects
         populateSelect('tag_1', currentTags);
         populateSelect('tag_2', currentTags, true);
         document.getElementById('tag_2').value = "";
@@ -272,7 +277,6 @@ async function loadAndRenderData() {
         }
     }
     
-    // Se não estiver autorizado, para aqui
     if (!isAuthorized) {
         updateSummaryUI({ totalGastos: 0, totalReceitas: 0, saldoLiquido: 0 });
         return;
@@ -289,15 +293,13 @@ async function loadAndRenderData() {
             
             return {
                 sheetRowIndex: index + 2, 
-                data: row[0], // row[0] é a Data
+                data: row[0], 
                 valor: valorNumerico,
-                tag_1: row[2], // row[2] é a Tag_1
+                tag_1: row[2], 
                 tag_2: row[3] || '',
-                tag_3: row[4] || '',
-                tag_4: row[5] || '',
                 descricao: row[6] || '',
                 forma_pagamento: row[7], 
-                tipo: row[8] ? row[8].toLowerCase() : 'despesa', // row[8] é o Tipo
+                tipo: row[8] ? row[8].toLowerCase() : 'despesa', 
             };
         });
 
