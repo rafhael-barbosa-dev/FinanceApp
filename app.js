@@ -67,9 +67,12 @@ function initializeGapiClient() {
 
 function handleAuthClick() {
     if (gisInited && tokenClient) {
-        tokenClient.requestAccessToken();
+        // NOVO: Usamos 'consent' e 'select_account'. 
+        // Isso força o Google a gerar um token de atualização e garantir
+        // que a sessão persista nas próximas vezes.
+        tokenClient.requestAccessToken({prompt: 'consent select_account'});
     } else {
-        alert('A API do Google ainda não foi inicializada.');
+        alert('A API do Google ainda não foi inicializada. Tente novamente em instantes.');
     }
 }
 
