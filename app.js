@@ -6,7 +6,7 @@ const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v
 
 // Variáveis de estado
 let isAuthorized = false; 
-let gisInited = false;
+let gapiSheetsLoaded = false; // Corrigido para clareza e controle
 let tokenClient; 
 let allRecords = []; 
 let currentRecords = []; 
@@ -20,9 +20,55 @@ let filterState = {
     endDate: null
 };
 
-// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (COM LOGS DE DIAGNÓSTICO E PERSISTÊNCIA) ---
+// --- FUNÇÃO CENTRAL DE PRONTIDÃO ---
+// Só chama loadAndRenderData se a autorização E a API estiverem prontas.
+function appReady() {
+    if (isAuthorized && gapiSheetsLoaded) {
+        console.log("LOG Z: App Pronto! Iniciando a leitura e renderização dos dados.");
+        const authStatus = document.getElementById('auth-status');
+        if (authStatus) authStatus.style.display = 'none'; 
+        loadAndRenderData();
+    } else if (!isAuthorized && gapiSheetsLoaded) {
+        // Se a API carregou, mas não há token, garante que a mensagem de login apareça.
+        const authStatus = document.getElementById('auth-status');
+        if (authStatus) {
+            authStatus.textContent = 'Clique para logar no Google e carregar dados.';
+            authStatus.style.cursor = 'pointer';
+            authStatus.onclick = handleAuthClick;
+            authStatus.style.display = 'block';
+        }
+        loadAndRenderData(); // Carrega dados vazios, se não autorizado
+    }
+}
+
+
+// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (COM FLUXO DE SINCRONIZAÇÃO) ---
 
 window.gapiLoaded = () => { gapi.load('client', initializeGapiClient); };
+
+function initializeGapiClient() {
+    gapi.client.init({
+        discoveryDocs: DISCOVERY_DOCS,
+    }).then(() => {
+        // Carregar o módulo Sheets V4 explicitamente.
+        gapi.client.load('sheets', 'v4').then(() => {
+            gapiSheetsLoaded = true; // 1. API Sheets OK
+            console.log("DIAGNÓSTICO: Módulo Sheets V4 carregado com sucesso.");
+            
+            // Se já tiver um token no cache, considere autorizado temporariamente
+            if (gapi.client.getToken()) {
+                isAuthorized = true;
+            }
+            
+            appReady(); // Tenta iniciar com o token em cache (se existir)
+
+        }, (error) => {
+             console.error('ERRO CRÍTICO: Falha ao carregar Módulo Sheets V4. Verifique a ativação da API no GCP.', error);
+        });
+    }, (error) => {
+        console.error('Erro ao inicializar gapi.client:', error);
+    });
+}
 
 window.gisLoaded = () => {
     console.log("LOG A: GIS carregado e iniciando token client.");
@@ -31,73 +77,39 @@ window.gisLoaded = () => {
         client_id: CLIENT_ID,
         scope: SCOPES,
         callback: (tokenResponse) => {
-            const authStatus = document.getElementById('auth-status');
-            
             if (tokenResponse && tokenResponse.access_token) {
                 console.log("LOG B: Autorização BEM-SUCEDIDA! isAuthorized = true.");
                 gapi.client.setToken(tokenResponse);
-                isAuthorized = true;
-                if (authStatus) authStatus.style.display = 'none'; 
-                loadAndRenderData(); 
+                isAuthorized = true; // 2. Autorização OK
+                
+                appReady(); // Inicia o carregamento de dados
+
             } else {
                 console.log("LOG B: Autorização FALHOU/NEGADA.");
                 isAuthorized = false;
+                
+                const authStatus = document.getElementById('auth-status');
                 if (authStatus) {
                     authStatus.textContent = 'ERRO DE CONEXÃO. Clique para logar no Google.';
                     authStatus.style.cursor = 'pointer';
                     authStatus.onclick = handleAuthClick;
                     authStatus.style.display = 'block';
                 }
-                loadAndRenderData(); 
+                loadAndRenderData(); // Carrega dados vazios
             }
         },
     });
 
-    // Tenta obter o token imediatamente (modo silencioso)
+    // Dispara o pedido de token silencioso
     tokenClient.requestAccessToken({prompt: ''});
 };
 
-function initializeGapiClient() {
-    gapi.client.init({
-        discoveryDocs: DISCOVERY_DOCS,
-    }).then(() => {
-        // ESSA É A CORREÇÃO CRÍTICA: Carregar o módulo Sheets V4 explicitamente.
-        gapi.client.load('sheets', 'v4').then(() => {
-            gisInited = true;
-            console.log("DIAGNÓSTICO: Módulo Sheets V4 carregado com sucesso.");
-            
-            // 🚨 NOVO CÓDIGO CRÍTICO: 
-            // Se o usuário JÁ está autorizado (do localStorage), carregue os dados agora 
-            // que a API Sheets está pronta.
-            if (gapi.client.getToken()) {
-                isAuthorized = true;
-                loadAndRenderData();
-            } else {
-                 // Certifique-se de que a mensagem de status esteja visível
-                const authStatus = document.getElementById('auth-status');
-                if (authStatus) {
-                    authStatus.textContent = 'Clique para logar no Google e carregar dados.';
-                    authStatus.style.cursor = 'pointer';
-                    authStatus.onclick = handleAuthClick;
-                    authStatus.style.display = 'block';
-                }
-            }
-            
-        }, (error) => {
-             // Este erro apareceria se o Sheets API não estivesse ATIVADO no Google Cloud Console
-             console.error('ERRO CRÍTICO: Falha ao carregar Módulo Sheets V4. Verifique a ativação da API no GCP.', error);
-        });
-    }, (error) => {
-        console.error('Erro ao inicializar gapi.client:', error);
-    });
-}
-
 function handleAuthClick() {
-    if (gisInited && tokenClient) {
-        // FORÇA PERSISTÊNCIA: Pede consentimento e seleção de conta (apenas na primeira vez).
+    if (gapiSheetsLoaded && tokenClient) {
+        // Agora sabemos que sheets V4 está carregado
         tokenClient.requestAccessToken({prompt: 'consent select_account'}); 
     } else {
-        alert('A API do Google ainda não foi inicializada.');
+        alert('A API do Google ainda não foi totalmente inicializada. Aguarde um momento.');
     }
 }
 
@@ -232,6 +244,7 @@ function applyFilters() {
 
     currentRecords = filteredData; 
     
+    // Atualiza a UI após filtrar
     const activePage = document.querySelector('.page.active').id;
     const resumo = calculateSummary(currentRecords);
     updateSummaryUI(resumo);
@@ -252,6 +265,12 @@ async function readSheetData(range) {
     
     console.log(`LOG C: Tentando ler a aba: ${range}`);
     
+    // Verifica novamente se o Sheets está carregado antes de usar gapi.client.sheets
+    if (!gapiSheetsLoaded) {
+        console.error('ERRO: gapi.client.sheets não carregado. Retornando dados vazios.');
+        return [];
+    }
+    
     try {
         const response = await gapi.client.sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -262,7 +281,6 @@ async function readSheetData(range) {
         return response.result.values || [];
         
     } catch (err) {
-        // ESSA É A NOVA MENSAGEM CRÍTICA: Se der erro, ele será impresso aqui.
         console.error('ERRO API DE LEITURA (FAILURE). CAUSA MAIS PROVÁVEL: NOME DA ABA OU SPREADSHEET_ID INCORRETO.', err);
         
         const authStatus = document.getElementById('auth-status');
@@ -280,7 +298,6 @@ async function loadAndRenderData() {
     console.log("LOG E: Iniciando loadAndRenderData."); 
     
     // 1. Carrega Organizadores (A:C)
-    // Se a aba Organizadores falhar, o código para aqui.
     const orgData = await readSheetData('Organizadores!A:C');
     if (orgData.length > 1) {
         currentTags = orgData.slice(1).map(row => row[0]).filter(t => t && t !== 'Null' && t !== 'Recebimentos');
@@ -302,6 +319,7 @@ async function loadAndRenderData() {
         }
     }
     
+    // Se a autorização falhou, só atualiza o resumo e sai.
     if (!isAuthorized) {
         updateSummaryUI({ totalGastos: 0, totalReceitas: 0, saldoLiquido: 0 });
         return;
@@ -314,6 +332,7 @@ async function loadAndRenderData() {
     if (registroData.length > 1) {
         allRecords = registroData.slice(1).map((row, index) => {
             const valorString = row[1] || 'R$ 0,00'; 
+            // Tratamento de valor para funcionar com R$ X.XXX,XX
             const valorNumerico = parseFloat(valorString.replace('R$', '').replace('.', '').replace(',', '.').trim() || 0);
             
             return {
@@ -333,6 +352,7 @@ async function loadAndRenderData() {
         if (metasData.length > 1) {
             currentMetas = metasData.slice(1).map(row => ({
                 mes: row[0],
+                // Tratamento de valor para funcionar com R$ X.XXX,XX
                 meta: parseFloat((row[1] || 'R$ 0,00').replace('R$', '').replace('.', '').replace(',', '.').trim() || 0),
                 tag: row[2]
             }));
@@ -346,7 +366,7 @@ async function loadAndRenderData() {
     }
 }
 
-// --- 6. FUNÇÕES DE ESCRITA (Mantidas e verificadas com sua estrutura) ---
+// --- 6. FUNÇÕES DE ESCRITA ---
 
 async function saveRecordToGoogleSheets(data) {
     if (!isAuthorized) {
@@ -357,7 +377,8 @@ async function saveRecordToGoogleSheets(data) {
     // Ordem das colunas: Data; Valor; Tag_1; Tag_2; Tag_3; Tag_4; Descrição; Forma do pagamento; Tipo
     const rowData = [
         data.data, 
-        `R$ ${data.valor}`, 
+        // Formata o valor de volta para a planilha (ex: R$ 1.234,56)
+        `R$ ${data.valor.replace('.', ',')}`, 
         data.tag_1,
         data.tag_2 || '',
         '', // Tag 3
@@ -391,10 +412,13 @@ async function saveRecordToGoogleSheets(data) {
 async function handleFormSubmit(event) {
     event.preventDefault();
 
+    const valorInput = document.getElementById('valor').value;
+    
     const data = {
         data: document.getElementById('data').value,
         tipo: document.getElementById('tipo').value, 
-        valor: parseFloat(document.getElementById('valor').value).toFixed(2),
+        // Usa toFixed(2) e substitui o ponto decimal por vírgula para salvar na planilha.
+        valor: parseFloat(valorInput).toFixed(2).replace('.', ','), 
         tag_1: document.getElementById('tag_1').value,
         tag_2: document.getElementById('tag_2').value,
         forma_pagamento: document.getElementById('forma_pagamento').value,
@@ -410,7 +434,7 @@ async function handleFormSubmit(event) {
     
     if (success) {
         document.getElementById('registro-form').reset();
-        await loadAndRenderData(); 
+        await loadAndRenderData(); // Recarrega os dados para mostrar o novo registro
     }
 }
 
@@ -462,17 +486,21 @@ function updateSummaryUI(resumo) {
 let metasChart, fluxoChart;
 
 function renderCharts() {
+    // Garante que o gráfico seja destruído antes de recriar
     if (metasChart) metasChart.destroy();
     if (fluxoChart) fluxoChart.destroy();
 
     const resumo = calculateSummary(currentRecords);
     
     const categoriasComMetas = currentMetas.map(m => m.tag);
+    // Adiciona categorias que têm gasto, mas não meta, para o resumo de gastos
+    const todasCategorias = [...new Set([...categoriasComMetas, ...Object.keys(resumo.gastosPorCategoria)])].filter(tag => tag);
+    
     const labels = [];
     const dadosGastos = [];
     const dadosMetas = [];
 
-    categoriasComMetas.forEach(tag => {
+    todasCategorias.forEach(tag => {
         labels.push(tag);
         dadosGastos.push(resumo.gastosPorCategoria[tag] || 0);
         
@@ -480,7 +508,9 @@ function renderCharts() {
         dadosMetas.push(meta ? meta.meta : 0);
     });
     
-    metasChart = new Chart(document.getElementById('metasChart').getContext('2d'), {
+    // Gráfico de Metas
+    const metasCtx = document.getElementById('metasChart').getContext('2d');
+    metasChart = new Chart(metasCtx, {
         type: 'bar',
         data: {
             labels: labels,
@@ -505,7 +535,9 @@ function renderCharts() {
         }
     });
 
-    fluxoChart = new Chart(document.getElementById('fluxoChart').getContext('2d'), {
+    // Gráfico de Fluxo (Doughnut)
+    const fluxoCtx = document.getElementById('fluxoChart').getContext('2d');
+    fluxoChart = new Chart(fluxoCtx, {
         type: 'doughnut',
         data: {
             labels: ['Receitas', 'Despesas'],
@@ -533,8 +565,10 @@ function renderTable(data) {
     data.slice().reverse().forEach((registro) => {
         const row = tbody.insertRow();
         
+        // Data formatada
         row.insertCell().textContent = new Date(registro.data + 'T00:00:00').toLocaleDateString('pt-BR');
         
+        // Valor com cor e formatação
         const valorCell = row.insertCell();
         valorCell.textContent = `R$ ${registro.valor.toFixed(2).replace('.', ',')}`;
         valorCell.style.color = registro.tipo === 'receita' ? '#28a745' : '#dc3545';
