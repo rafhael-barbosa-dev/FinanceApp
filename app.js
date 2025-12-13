@@ -61,7 +61,14 @@ function initializeGapiClient() {
     gapi.client.init({
         discoveryDocs: DISCOVERY_DOCS,
     }).then(() => {
-        gisInited = true;
+        // ESSA É A CORREÇÃO CRÍTICA: Carregar o módulo Sheets V4 explicitamente.
+        gapi.client.load('sheets', 'v4').then(() => {
+            gisInited = true;
+            console.log("DIAGNÓSTICO: Módulo Sheets V4 carregado com sucesso.");
+        }, (error) => {
+             // Este erro apareceria se o Sheets API não estivesse ATIVADO no Google Cloud Console
+             console.error('ERRO CRÍTICO: Falha ao carregar Módulo Sheets V4. Verifique a ativação da API no GCP.', error);
+        });
     }, (error) => {
         console.error('Erro ao inicializar gapi.client:', error);
     });
