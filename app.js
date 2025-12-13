@@ -65,6 +65,24 @@ function initializeGapiClient() {
         gapi.client.load('sheets', 'v4').then(() => {
             gisInited = true;
             console.log("DIAGNÓSTICO: Módulo Sheets V4 carregado com sucesso.");
+            
+            // 🚨 NOVO CÓDIGO CRÍTICO: 
+            // Se o usuário JÁ está autorizado (do localStorage), carregue os dados agora 
+            // que a API Sheets está pronta.
+            if (gapi.client.getToken()) {
+                isAuthorized = true;
+                loadAndRenderData();
+            } else {
+                 // Certifique-se de que a mensagem de status esteja visível
+                const authStatus = document.getElementById('auth-status');
+                if (authStatus) {
+                    authStatus.textContent = 'Clique para logar no Google e carregar dados.';
+                    authStatus.style.cursor = 'pointer';
+                    authStatus.onclick = handleAuthClick;
+                    authStatus.style.display = 'block';
+                }
+            }
+            
         }, (error) => {
              // Este erro apareceria se o Sheets API não estivesse ATIVADO no Google Cloud Console
              console.error('ERRO CRÍTICO: Falha ao carregar Módulo Sheets V4. Verifique a ativação da API no GCP.', error);
