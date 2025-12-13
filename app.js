@@ -1,5 +1,5 @@
 const SPREADSHEET_ID = '1MdQGwWHbFWi7z9kM3uwKTIfGiTSBRjLS_ky-z83_4pM'; // SEU ID DA PLANILHA
-const CLIENT_ID = '238812906130-opesdsnklslqtrb22bk9cpnb5f52jlih.apps.googleusercontent.com'; // SEU CLIENT ID
+const CLIENT_ID = '238812906130-opesdsnklslqtrb22bk9cpnb5f52jlih.apps.googleusercontent.com';
 
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets'; 
 const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
@@ -20,7 +20,7 @@ let filterState = {
     endDate: null
 };
 
-// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (COM LOGS DE DIAGNÓSTICO) ---
+// --- 2. INICIALIZAÇÃO E AUTORIZAÇÃO (COM LOGS DE DIAGNÓSTICO E PERSISTÊNCIA) ---
 
 window.gapiLoaded = () => { gapi.load('client', initializeGapiClient); };
 
@@ -69,7 +69,7 @@ function initializeGapiClient() {
 
 function handleAuthClick() {
     if (gisInited && tokenClient) {
-        // ESSA É A CHAVE DA PERSISTÊNCIA: Força o consentimento e a seleção de conta.
+        // FORÇA PERSISTÊNCIA: Pede consentimento e seleção de conta (apenas na primeira vez).
         tokenClient.requestAccessToken({prompt: 'consent select_account'}); 
     } else {
         alert('A API do Google ainda não foi inicializada.');
@@ -237,12 +237,12 @@ async function readSheetData(range) {
         return response.result.values || [];
         
     } catch (err) {
-        // Se este erro ocorrer, significa que a permissão foi negada APÓS o login (GCP/Compartilhamento) ou URL/ID incorreto.
-        console.error('ERRO API DE LEITURA (FAILURE):', err);
+        // ESSA É A NOVA MENSAGEM CRÍTICA: Se der erro, ele será impresso aqui.
+        console.error('ERRO API DE LEITURA (FAILURE). CAUSA MAIS PROVÁVEL: NOME DA ABA OU SPREADSHEET_ID INCORRETO.', err);
         
         const authStatus = document.getElementById('auth-status');
         if (authStatus) {
-            authStatus.textContent = `ERRO API! Verifique o NOME DA ABA e o COMPARTILHAMENTO da planilha.`;
+            authStatus.textContent = `ERRO CRÍTICO NA LEITURA DA PLANILHA! (Ver Console para detalhes).`;
             authStatus.style.cursor = 'pointer';
             authStatus.onclick = handleAuthClick;
             authStatus.style.display = 'block';
@@ -255,9 +255,9 @@ async function loadAndRenderData() {
     console.log("LOG E: Iniciando loadAndRenderData."); 
     
     // 1. Carrega Organizadores (A:C)
+    // Se a aba Organizadores falhar, o código para aqui.
     const orgData = await readSheetData('Organizadores!A:C');
     if (orgData.length > 1) {
-        // A=Tag, B=Forma de pagamento, C=Tipo
         currentTags = orgData.slice(1).map(row => row[0]).filter(t => t && t !== 'Null' && t !== 'Recebimentos');
         currentFormasPagamento = orgData.slice(1).map(row => row[1]).filter(f => f);
         currentFormasPagamento = [...new Set(currentFormasPagamento)];
