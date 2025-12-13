@@ -1,4 +1,4 @@
-const SPREADSHEET_ID = '149RuLSboaZ-thzioPCpDxuQINU38JQarmkt4hT6fsys'; // SEU ID DA PLANILHA
+const SPREADSHEET_ID = '1MdQGwWHbFWi7z9kM3uwKTIfGiTSBRjLS_ky-z83_4pM'; // SEU ID DA PLANILHA
 const CLIENT_ID = '238812906130-opesdsnklslqtrb22bk9cpnb5f52jlih.apps.googleusercontent.com'; // SEU CLIENT ID
 
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets'; 
