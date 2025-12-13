@@ -293,6 +293,8 @@ async function loadAndRenderData() {
                 valor: valorNumerico,
                 tag_1: row[2], // row[2] é a Tag_1
                 tag_2: row[3] || '',
+                tag_3: row[4] || '',
+                tag_4: row[5] || '',
                 descricao: row[6] || '',
                 forma_pagamento: row[7], 
                 tipo: row[8] ? row[8].toLowerCase() : 'despesa', // row[8] é o Tipo
