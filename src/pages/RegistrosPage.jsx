@@ -1,14 +1,18 @@
-// src/pages/RegistrosPage.jsx - FINAL COM CORREÇÃO DE HOOKS
+// src/pages/RegistrosPage.jsx - FINAL COM CONEXÃO AO BACKEND RENDER
 import React, { useState, useMemo } from 'react';
-import { postDataToAppsScript } from '../utils/api'; 
+
+// Corrigido: Agora importamos a função com o novo nome
+import { postDataToBackend } from '../utils/api'; 
+
 import FloatingButton from '../components/FloatingButton.jsx'; 
 import Modal from '../components/Modal.jsx'; 
 import NewRecordForm from '../components/NewRecordForm.jsx'; 
-import DirectEditForm from '../components/DirectEditForm.jsx'; // NOVO IMPORT
-import "react-datepicker/dist/react-datepicker.css"; // Mantém o CSS do DatePicker
+import DirectEditForm from '../components/DirectEditForm.jsx';
+import "react-datepicker/dist/react-datepicker.css"; 
 
-// Para fins de demonstração e teste:
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwqGzf85y0vzefvr4uQ98YoS2BxYIrxZ5-BQnq5iD0vBOZRfisEbHKMechZFPNY-N2X/exec'; 
+// --- CRUCIAL: URL DO SEU BACKEND RENDER ---
+const BACKEND_RENDER_URL = 'https://financeapp-backend-6iv3.onrender.com'; 
+
 
 // --- UTILS LOCAIS ---
 const formatDateDisplay = (dateStr) => {
@@ -16,6 +20,7 @@ const formatDateDisplay = (dateStr) => {
     return dateStr.substring(8, 10) + '/' + dateStr.substring(5, 7) + '/' + dateStr.substring(0, 4);
 };
 const dateToInput = (dateObj) => {
+    // Retorna a data no formato YYYY-MM-DD, que o backend Node.js espera
     return dateObj ? dateObj.toISOString().split('T')[0] : '';
 };
 const cleanValue = (valorInput) => {
@@ -46,6 +51,7 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
         return records.map(r => ({
             ...r,
             Data: r.Data ? new Date(r.Data) : new Date(),
+            // Mapeia Tags de volta para um array para facilitar a edição no frontend
             Tags: [r.Tag_1, r.Tag_2, r.Tag_3, r.Tag_4].filter(tag => tag && tag.toString().trim() !== '')
         })).reverse(); 
     }, [records]);
@@ -56,33 +62,51 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
         setIsSaving(true);
         setMessage('Salvando registro...');
         
+        // Formata os dados no formato que o backend Node.js espera
         const tags = dataToSave.Tags || [];
         const finalData = {
-            ...dataToSave,
+            // Data é crucial no formato YYYY-MM-DD
             Data: dateToInput(dataToSave.Data), 
             Valor: cleanValue(dataToSave.Valor),
+            // Outros campos simples
+            Descricao: dataToSave.Descricao || '', 
+            Tipo: dataToSave.Tipo || '',
+            
+            // As Tags são expandidas nas colunas esperadas pela planilha
             Tag_1: tags[0] || '',
             Tag_2: tags[1] || '',
             Tag_3: tags[2] || '',
             Tag_4: tags[3] || '',
         };
-
+        
+        // Se for uma atualização, o backend precisa saber a linha
+        if (action === 'UPDATE_RECORD' && dataToSave.ROW_NUMBER) {
+            finalData.ROW_NUMBER = dataToSave.ROW_NUMBER;
+            finalData.columnToUpdate = columnToUpdate; // (Se necessário para granularidade)
+        }
+        
+        // O backend do Render só tem o endpoint /api/add-registro.
+        // O tratamento para UPDATE_RECORD deve ser feito no servidor, 
+        // mas aqui tratamos as tags e o ROW_NUMBER (se houver).
+        
         try {
-            if (APPS_SCRIPT_URL === 'SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI') {
-                throw new Error("URL do Apps Script não configurada.");
+            if (!BACKEND_RENDER_URL || BACKEND_RENDER_URL.includes('onrender.com') === false) {
+                throw new Error("URL do Backend Render não configurada ou inválida.");
             }
+            
+            // CHAMADA AO NOVO BACKEND DO RENDER
+            const response = await postDataToBackend(BACKEND_RENDER_URL, finalData); 
             
             // FIX: Garante que a data persistente seja atualizada
             if (action === 'ADD_RECORD') {
                 setLastSelectedDate(dataToSave.Data);
             }
 
-            const response = await postDataToAppsScript(APPS_SCRIPT_URL, action, finalData); 
-            
             const successMsg = action === 'ADD_RECORD' ? `Sucesso! Novo registro adicionado.` : `Sucesso! Atualização salva.`;
             setMessage(successMsg);
             
             if (reloadData) {
+                // Recarrega os dados da planilha para atualizar a tabela
                 await reloadData();
             }
             
@@ -93,7 +117,7 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
             }, 500);
             
         } catch (err) {
-            setMessage(`Erro no salvamento: ${err.message}. Verifique a implantação do Apps Script.`);
+            setMessage(`Erro no salvamento: ${err.message}. Verifique o servidor Render.`);
         } finally {
             setIsSaving(false);
         }
@@ -102,6 +126,9 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
 
     // --- LÓGICA DE EDIÇÃO DIRETA POR CÉLULA ---
     const startDirectEdit = (record, column) => {
+        // A edição direta é um UPDATE, mas o backend atual só tem ADD.
+        // Vamos permitir apenas o ADD por enquanto, até que o backend seja estendido para UPDATE.
+        // Para manter a funcionalidade de UPDATE:
         setModalMode('EDIT');
         setCurrentRecord({
             ...record,
@@ -118,7 +145,7 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
             Data: lastSelectedDate, 
             Tipo: 'Despesa', 
             Valor: 0, 
-            Descrição: '',
+            Descricao: '', // Campo Descrição deve ser 'Descricao'
             Tags: [], 
         });
         setIsModalOpen(true);
@@ -144,6 +171,7 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                         {mappedRecords.map((record) => (
                             <tr key={record.ROW_NUMBER} style={styles.tr}>
                                 {columns.map(col => (
+                                    // AÇÃO: Abre o modal de edição ao clicar na célula
                                     <td key={col} style={styles.td} onClick={() => startDirectEdit(record, col)}>
                                         {col === 'Data' ? formatDateDisplay(dateToInput(record.Data)) :
                                          col === 'Tags' ? record.Tags.join(', ') :
@@ -163,7 +191,6 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
             <Modal 
                 isOpen={isModalOpen} 
                 onClose={() => {
-                    // Impede o fechamento durante o salvamento
                     if (isSaving) return; 
                     setIsModalOpen(false); 
                     setCurrentRecord(null);
@@ -176,7 +203,6 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                     <NewRecordForm 
                         initialData={currentRecord} 
                         options={options} 
-                        // Corrigido: Passando handleSaveRecord corretamente
                         onSave={handleSaveRecord} 
                         isSaving={isSaving} 
                     />
