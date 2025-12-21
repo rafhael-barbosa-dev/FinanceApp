@@ -154,7 +154,6 @@ const HomePage = ({ aggregatedData }) => {
     // --- ESTILOS MOBILE-FIRST ---
     const containerStyle = {
         padding: '15px',
-        paddingTop: '80px', // Espaço para o título fixo
         fontFamily: 'Arial, sans-serif',
         minHeight: 'calc(100vh - 70px)',
         backgroundColor: '#f4f4f9',
@@ -171,14 +170,6 @@ const HomePage = ({ aggregatedData }) => {
         marginBottom: '15px',
         color: '#333',
         fontWeight: 'bold',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#f4f4f9',
-        padding: '15px',
-        zIndex: 100,
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
     };
     
     const filterContainerStyle = {

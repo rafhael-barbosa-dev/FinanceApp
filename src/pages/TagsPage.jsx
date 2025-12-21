@@ -265,7 +265,6 @@ export default TagsPage;
 const styles = {
     container: {
         padding: '15px',
-        paddingTop: '80px', // Espaço para o título fixo
         fontFamily: 'Arial, sans-serif',
         backgroundColor: '#f4f4f9',
         minHeight: 'calc(100vh - 70px)',
@@ -278,14 +277,6 @@ const styles = {
         marginBottom: '20px',
         color: '#333',
         fontWeight: 'bold',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#f4f4f9',
-        padding: '15px',
-        zIndex: 100,
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
     },
     tagsContainer: {
         display: 'flex',

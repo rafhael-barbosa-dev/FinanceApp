@@ -14,6 +14,7 @@ const styles = {
         boxShadow: '0 -2px 5px rgba(0,0,0,0.1)',
         zIndex: 1000,
         padding: '10px 0',
+        fontFamily: 'Arial, sans-serif', // Mesma fonte do app
     },
     link: {
         display: 'flex',
@@ -22,6 +23,7 @@ const styles = {
         textDecoration: 'none',
         color: '#555',
         fontSize: '10px', // Pequeno e otimizado para mobile
+        fontFamily: 'Arial, sans-serif', // Mesma fonte do app
     },
     activeLink: {
         color: '#007bff', // Cor de destaque

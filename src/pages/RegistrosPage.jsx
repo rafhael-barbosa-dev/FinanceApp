@@ -51,8 +51,9 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
     // Estados para modo seleção
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedRows, setSelectedRows] = useState(new Set());
-    const [touchStartTime, setTouchStartTime] = useState(null);
+    const [touchStartPos, setTouchStartPos] = useState(null);
     const [touchStartRow, setTouchStartRow] = useState(null);
+    const [isScrolling, setIsScrolling] = useState(false);
 
     const records = aggregatedData?.rawData?.registro || [];
     const options = aggregatedData?.options || { allTags: [], tipos: [] };
@@ -269,38 +270,65 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
     // --- LÓGICA DE SELEÇÃO DE LINHAS (MOBILE) ---
     // ---------------------------------------------
     
-    // Detecta long press (500ms) para entrar em modo seleção
+    // Detecta swipe horizontal (arrastar para direita) para entrar em modo seleção
     const handleTouchStart = (e, rowNumber) => {
         if (isSelectionMode) {
-            // Se já está em modo seleção, apenas alterna a seleção
-            toggleRowSelection(rowNumber);
+            // Se já está em modo seleção, não faz nada no touchStart
+            // O onClick vai lidar com a alternância
             return;
         }
         
-        setTouchStartTime(Date.now());
+        const touch = e.touches[0];
+        setTouchStartPos({ x: touch.clientX, y: touch.clientY });
         setTouchStartRow(rowNumber);
+        setIsScrolling(false);
+    };
+    
+    const handleTouchMove = (e) => {
+        if (!touchStartPos || isSelectionMode) return;
+        
+        const touch = e.touches[0];
+        const deltaX = Math.abs(touch.clientX - touchStartPos.x);
+        const deltaY = Math.abs(touch.clientY - touchStartPos.y);
+        
+        // Se o movimento vertical for maior que o horizontal, é rolagem
+        if (deltaY > deltaX && deltaY > 10) {
+            setIsScrolling(true);
+            setTouchStartPos(null);
+            setTouchStartRow(null);
+        }
     };
     
     const handleTouchEnd = (e, rowNumber) => {
-        if (!touchStartTime || touchStartRow !== rowNumber) return;
+        if (!touchStartPos || touchStartRow !== rowNumber || isScrolling) {
+            setTouchStartPos(null);
+            setTouchStartRow(null);
+            setIsScrolling(false);
+            return;
+        }
         
-        const touchDuration = Date.now() - touchStartTime;
-        const LONG_PRESS_DURATION = 500; // 500ms
+        const touch = e.changedTouches[0];
+        const deltaX = touch.clientX - touchStartPos.x;
+        const deltaY = Math.abs(touch.clientY - touchStartPos.y);
         
-        if (touchDuration >= LONG_PRESS_DURATION) {
+        // Swipe horizontal para direita (pelo menos 50px) e movimento vertical mínimo
+        const SWIPE_THRESHOLD = 50;
+        if (deltaX > SWIPE_THRESHOLD && deltaY < 30) {
             // Entra em modo seleção
             setIsSelectionMode(true);
             setSelectedRows(new Set([rowNumber]));
-            e.preventDefault(); // Previne o click normal
+            e.preventDefault();
         }
         
-        setTouchStartTime(null);
+        setTouchStartPos(null);
         setTouchStartRow(null);
+        setIsScrolling(false);
     };
     
     const handleTouchCancel = () => {
-        setTouchStartTime(null);
+        setTouchStartPos(null);
         setTouchStartRow(null);
+        setIsScrolling(false);
     };
     
     // Alterna seleção de uma linha
@@ -464,16 +492,24 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                                     style={{
                                         ...styles.tr,
                                         backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
-                                        userSelect: 'none'
+                                        userSelect: 'none',
+                                        position: 'relative'
                                     }}
-                                    onTouchStart={(e) => handleTouchStart(e, record.ROW_NUMBER)}
-                                    onTouchEnd={(e) => handleTouchEnd(e, record.ROW_NUMBER)}
-                                    onTouchCancel={handleTouchCancel}
-                                    onClick={() => {
+                                    onTouchStart={(e) => !isSelectionMode && handleTouchStart(e, record.ROW_NUMBER)}
+                                    onTouchMove={!isSelectionMode ? handleTouchMove : undefined}
+                                    onTouchEnd={(e) => !isSelectionMode && handleTouchEnd(e, record.ROW_NUMBER)}
+                                    onTouchCancel={!isSelectionMode ? handleTouchCancel : undefined}
+                                    onClick={(e) => {
                                         if (isSelectionMode) {
+                                            e.preventDefault();
                                             toggleRowSelection(record.ROW_NUMBER);
-                                        } else {
-                                            // Comportamento normal (edição)
+                                        }
+                                    }}
+                                    onTouchEndCapture={(e) => {
+                                        // Se está em modo seleção, alterna a seleção no toque
+                                        if (isSelectionMode) {
+                                            e.preventDefault();
+                                            toggleRowSelection(record.ROW_NUMBER);
                                         }
                                     }}
                                 >
@@ -637,7 +673,6 @@ export default RegistrosPage;
 const styles = {
     container: { 
         padding: '15px', 
-        paddingTop: '80px', // Espaço para o título fixo
         fontFamily: 'Arial, sans-serif', 
         backgroundColor: '#f4f4f9', 
         minHeight: 'calc(100vh - 70px)',
@@ -653,14 +688,6 @@ const styles = {
         marginBottom: '15px', 
         color: '#333',
         fontWeight: 'bold',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#f4f4f9',
-        padding: '15px',
-        zIndex: 100,
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
     },
     filterContainer: {
         marginBottom: '20px',

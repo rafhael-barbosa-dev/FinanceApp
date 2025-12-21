@@ -261,7 +261,15 @@ const MetasPage = ({ aggregatedData, reloadData }) => {
                 <table style={styles.table}>
                     <thead>
                         <tr>
-                            {columns.map(col => <th key={col} style={styles.th}>{col}</th>)}
+                            {columns.map(col => {
+                                if (col === 'Mês') {
+                                    return <th key={col} style={styles.thMes}>{col}</th>;
+                                } else if (col === 'Valor') {
+                                    return <th key={col} style={styles.thValor}>{col}</th>;
+                                } else {
+                                    return <th key={col} style={styles.th}>{col}</th>;
+                                }
+                            })}
                         </tr>
                     </thead>
                     <tbody>
@@ -296,17 +304,25 @@ const MetasPage = ({ aggregatedData, reloadData }) => {
                                         displayValue = meta[col] || '';
                                     }
                                     
+                                    // Aplica estilos específicos para Mês e Valor
+                                    let cellStyle = styles.td;
+                                    if (col === 'Mês') {
+                                        cellStyle = styles.tdMes;
+                                    } else if (col === 'Valor') {
+                                        cellStyle = styles.tdValor;
+                                    }
+                                    
                                     // Se displayValue é um componente React, renderiza diretamente
                                     if (React.isValidElement(displayValue)) {
                                         return (
-                                            <td key={col} style={styles.td} onClick={() => startDirectEdit(meta, col)}>
+                                            <td key={col} style={cellStyle} onClick={() => startDirectEdit(meta, col)}>
                                                 {displayValue}
                                             </td>
                                         );
                                     }
                                     
                                     return (
-                                        <td key={col} style={styles.td} onClick={() => startDirectEdit(meta, col)}>
+                                        <td key={col} style={cellStyle} onClick={() => startDirectEdit(meta, col)}>
                                             {displayValue}
                                         </td>
                                     );
@@ -362,7 +378,6 @@ export default MetasPage;
 const styles = {
     container: {
         padding: '15px',
-        paddingTop: '80px', // Espaço para o título fixo
         fontFamily: 'Arial, sans-serif',
         backgroundColor: '#f4f4f9',
         minHeight: 'calc(100vh - 70px)',
@@ -378,14 +393,6 @@ const styles = {
         marginBottom: '15px', 
         color: '#333',
         fontWeight: 'bold',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#f4f4f9',
-        padding: '15px',
-        zIndex: 100,
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
     },
     filterContainer: {
         marginBottom: '20px',
@@ -429,6 +436,47 @@ const styles = {
         borderCollapse: 'collapse', 
         minWidth: '400px',
         tableLayout: 'auto'
+    },
+    // Estilos específicos para colunas
+    thMes: {
+        padding: '10px 8px', 
+        textAlign: 'left', 
+        backgroundColor: '#007bff', 
+        color: 'white', 
+        fontSize: '13px', 
+        borderBottom: '2px solid #ddd', 
+        whiteSpace: 'nowrap',
+        width: 'auto',
+        minWidth: '80px'
+    },
+    thValor: {
+        padding: '10px 8px', 
+        textAlign: 'left', 
+        backgroundColor: '#007bff', 
+        color: 'white', 
+        fontSize: '13px', 
+        borderBottom: '2px solid #ddd', 
+        whiteSpace: 'nowrap',
+        width: 'auto',
+        minWidth: '100px'
+    },
+    tdMes: {
+        padding: '8px',
+        textAlign: 'left',
+        borderBottom: '1px solid #eee',
+        fontSize: '13px',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        width: 'auto'
+    },
+    tdValor: {
+        padding: '8px',
+        textAlign: 'left',
+        borderBottom: '1px solid #eee',
+        fontSize: '13px',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        width: 'auto'
     },
     th: { 
         padding: '10px 8px', 
