@@ -26,13 +26,35 @@ const styles = {
         minHeight: '60px',
         maxWidth: '60px',
         maxHeight: '60px',
+        transition: 'background-color 0.3s ease',
+    },
+    fabDelete: {
+        backgroundColor: '#ff6384', // Vermelho para deletar
+        fontSize: '24px',
+    },
+    fabDisabled: {
+        opacity: 0.5,
+        cursor: 'not-allowed',
     },
 };
 
-const FloatingButton = React.memo(({ onClick }) => ( // Uso de React.memo
-    <button onClick={onClick} style={styles.fab}>
-        +
-    </button>
-));
+const FloatingButton = React.memo(({ onClick, mode = 'add', disabled = false }) => {
+    const isDeleteMode = mode === 'delete';
+    const buttonStyle = {
+        ...styles.fab,
+        ...(isDeleteMode ? styles.fabDelete : {}),
+        ...(disabled ? styles.fabDisabled : {}),
+    };
+    
+    return (
+        <button 
+            onClick={onClick} 
+            style={buttonStyle}
+            disabled={disabled}
+        >
+            {isDeleteMode ? '🗑️' : '+'}
+        </button>
+    );
+});
 
 export default FloatingButton;

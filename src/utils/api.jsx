@@ -293,3 +293,40 @@ export const deleteOrganizadorFromBackend = async ({ rowNumber }) => {
         throw error;
     }
 };
+
+// -------------------------------------------------------------------------
+// 6. FUNÇÃO PARA DELETAR MÚLTIPLOS REGISTROS (PREPARADO PARA BACKEND)
+// -------------------------------------------------------------------------
+
+export const deleteMultipleRecordsFromBackend = async ({ rowNumbers }) => {
+    // TODO: Implementar endpoint no backend: POST /api/delete-multiple-registros
+    // Por enquanto, retorna erro informando que precisa ser implementado
+    const endpoint = `${BACKEND_RENDER_URL}/api/delete-multiple-registros`;
+    
+    const payload = { rowNumbers: Array.from(rowNumbers) };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload), 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(`Erro do Servidor: ${result.message || 'Falha na deleção de registros.'}`);
+        }
+        
+        return result;
+
+    } catch (error) {
+        console.error("Erro ao deletar múltiplos registros no Backend (DELETE):", error);
+        throw error;
+    }
+};

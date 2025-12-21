@@ -180,15 +180,34 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
             );
             break;
         case 'Tag':
-            // Lightbox de Seleção de Tag (para Metas)
+        case 'Tag_1':
+        case 'Tag_2':
+        case 'Tag_3':
+        case 'Tag_4':
+            // Lightbox de Seleção de Tag (para Metas ou Tags individuais) - COM CORES
+            const tagsWithColors = options?.tagsWithColors || {};
             inputComponent = (
                 <div style={styles.tagOptionContainer}>
-                    {options.allTags.map(tag => (
-                        <button key={tag} style={localValue === tag ? styles.selectedTag : styles.tagButton}
-                                onClick={() => setLocalValue(tag)} disabled={isSaving}>
-                            {tag}
-                        </button>
-                    ))}
+                    {options.allTags.map(tag => {
+                        const tagColor = tagsWithColors[tag] || '#4bc0c0';
+                        const isSelected = localValue === tag;
+                        return (
+                            <button 
+                                key={tag} 
+                                style={{
+                                    ...(isSelected ? styles.selectedTagColored : styles.tagButtonColored),
+                                    backgroundColor: isSelected ? tagColor : '#f0f0f0',
+                                    borderColor: tagColor,
+                                    color: isSelected ? '#fff' : '#333',
+                                    textShadow: isSelected ? '1px 1px 2px rgba(0,0,0,0.3)' : 'none',
+                                }}
+                                onClick={() => setLocalValue(tag)} 
+                                disabled={isSaving}
+                            >
+                                {tag}
+                            </button>
+                        );
+                    })}
                 </div>
             );
             break;
@@ -202,7 +221,7 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
             );
             break;
         case 'Tags':
-            // Lightbox de Seleção Múltipla (Tags)
+            // Lightbox de Seleção Múltipla (Tags) - COM CORES
             const toggleTag = (tag) => {
                 const currentTags = Array.isArray(localValue) ? localValue : [];
                 let newTags;
@@ -217,15 +236,30 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
             };
             
             const tagsArray = Array.isArray(localValue) ? localValue : [];
+            const tagsWithColorsForTags = options?.tagsWithColors || {};
             
             inputComponent = (
                 <div style={{ ...styles.tagOptionContainer, justifyContent: 'flex-start' }}>
-                    {options.allTags.map(tag => (
-                        <button key={tag} style={tagsArray.includes(tag) ? styles.selectedTag : styles.tagButton}
-                                onClick={() => toggleTag(tag)} disabled={isSaving}>
-                            {tag}
-                        </button>
-                    ))}
+                    {options.allTags.map(tag => {
+                        const tagColor = tagsWithColorsForTags[tag] || '#4bc0c0';
+                        const isSelected = tagsArray.includes(tag);
+                        return (
+                            <button 
+                                key={tag} 
+                                style={{
+                                    ...(isSelected ? styles.selectedTagColored : styles.tagButtonColored),
+                                    backgroundColor: isSelected ? tagColor : '#f0f0f0',
+                                    borderColor: tagColor,
+                                    color: isSelected ? '#fff' : '#333',
+                                    textShadow: isSelected ? '1px 1px 2px rgba(0,0,0,0.3)' : 'none',
+                                }}
+                                onClick={() => toggleTag(tag)} 
+                                disabled={isSaving}
+                            >
+                                {tag}
+                            </button>
+                        );
+                    })}
                 </div>
             );
             break;
@@ -275,5 +309,24 @@ const styles = {
     selectedOption: { padding: '8px 12px', borderRadius: '5px', border: '1px solid #4bc0c0', backgroundColor: '#4bc0c0', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' },
     tagButton: { padding: '6px 10px', borderRadius: '5px', border: '1px solid #007bff', backgroundColor: '#f0f8ff', cursor: 'pointer', fontSize: '12px' },
     selectedTag: { padding: '6px 10px', borderRadius: '5px', border: '1px solid #007bff', backgroundColor: '#007bff', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' },
+    // Novos estilos para tags com cores
+    tagButtonColored: { 
+        padding: '8px 12px', 
+        borderRadius: '12px', 
+        border: '2px solid', 
+        cursor: 'pointer', 
+        fontSize: '14px',
+        fontWeight: 'bold',
+        transition: 'all 0.2s ease',
+    },
+    selectedTagColored: { 
+        padding: '8px 12px', 
+        borderRadius: '12px', 
+        border: '2px solid', 
+        cursor: 'pointer', 
+        fontSize: '14px',
+        fontWeight: 'bold',
+        transition: 'all 0.2s ease',
+    },
     nextButton: { padding: '10px 15px', backgroundColor: '#4bc0c0', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', marginTop: '15px' },
 };

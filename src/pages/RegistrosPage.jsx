@@ -3,12 +3,13 @@
 import React, { useState, useMemo } from 'react';
 
 // Importa as novas funções de API separadas
-import { addDataToBackend, updateDataInBackend } from '../utils/api'; 
+import { addDataToBackend, updateDataInBackend, deleteMultipleRecordsFromBackend } from '../utils/api'; 
 
 import FloatingButton from '../components/FloatingButton.jsx'; 
 import Modal from '../components/Modal.jsx'; 
 import NewRecordForm from '../components/NewRecordForm.jsx'; 
 import DirectEditForm from '../components/DirectEditForm.jsx'; 
+import SummaryCards from '../components/SummaryCards.jsx';
 import DatePicker from 'react-datepicker'; // Usado para edição direta de Data
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -46,6 +47,12 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
     const [currentRecord, setCurrentRecord] = useState(null); 
     const [modalMode, setModalMode] = useState(null); // 'NEW', 'EDIT', 'GUIDED'
     const [lastSelectedDate, setLastSelectedDate] = useState(new Date()); // Persistência de Data
+    
+    // Estados para modo seleção
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedRows, setSelectedRows] = useState(new Set());
+    const [touchStartTime, setTouchStartTime] = useState(null);
+    const [touchStartRow, setTouchStartRow] = useState(null);
 
     const records = aggregatedData?.rawData?.registro || [];
     const options = aggregatedData?.options || { allTags: [], tipos: [] };
@@ -258,16 +265,115 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
         setMessage('');
     };
     
+    // ---------------------------------------------
+    // --- LÓGICA DE SELEÇÃO DE LINHAS (MOBILE) ---
+    // ---------------------------------------------
+    
+    // Detecta long press (500ms) para entrar em modo seleção
+    const handleTouchStart = (e, rowNumber) => {
+        if (isSelectionMode) {
+            // Se já está em modo seleção, apenas alterna a seleção
+            toggleRowSelection(rowNumber);
+            return;
+        }
+        
+        setTouchStartTime(Date.now());
+        setTouchStartRow(rowNumber);
+    };
+    
+    const handleTouchEnd = (e, rowNumber) => {
+        if (!touchStartTime || touchStartRow !== rowNumber) return;
+        
+        const touchDuration = Date.now() - touchStartTime;
+        const LONG_PRESS_DURATION = 500; // 500ms
+        
+        if (touchDuration >= LONG_PRESS_DURATION) {
+            // Entra em modo seleção
+            setIsSelectionMode(true);
+            setSelectedRows(new Set([rowNumber]));
+            e.preventDefault(); // Previne o click normal
+        }
+        
+        setTouchStartTime(null);
+        setTouchStartRow(null);
+    };
+    
+    const handleTouchCancel = () => {
+        setTouchStartTime(null);
+        setTouchStartRow(null);
+    };
+    
+    // Alterna seleção de uma linha
+    const toggleRowSelection = (rowNumber) => {
+        setSelectedRows(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(rowNumber)) {
+                newSet.delete(rowNumber);
+            } else {
+                newSet.add(rowNumber);
+            }
+            return newSet;
+        });
+    };
+    
+    // Cancela modo seleção
+    const cancelSelection = () => {
+        setIsSelectionMode(false);
+        setSelectedRows(new Set());
+    };
+    
+    // Deleta registros selecionados
+    const handleDeleteSelected = async () => {
+        if (selectedRows.size === 0) return;
+        
+        if (!window.confirm(`Tem certeza que deseja deletar ${selectedRows.size} registro(s)?`)) {
+            return;
+        }
+        
+        setIsSaving(true);
+        setMessage('Deletando registros...');
+        
+        try {
+            const rowNumbers = Array.from(selectedRows);
+            
+            // Tenta deletar múltiplos registros (pode falhar se o endpoint não existir ainda)
+            try {
+                await deleteMultipleRecordsFromBackend({ rowNumbers });
+                setMessage(`${selectedRows.size} registro(s) deletado(s) com sucesso!`);
+            } catch (deleteError) {
+                // Se o endpoint não existir, mostra mensagem informativa
+                if (deleteError.message.includes('404') || deleteError.message.includes('not found')) {
+                    setMessage(`Endpoint de deleção múltipla ainda não implementado no backend. ${selectedRows.size} registro(s) selecionado(s).`);
+                } else {
+                    throw deleteError;
+                }
+            }
+            
+            // Limpa seleção
+            cancelSelection();
+            
+            // Recarrega dados
+            if (reloadData) {
+                await reloadData();
+            }
+            
+        } catch (err) {
+            setMessage(`Erro ao deletar registros: ${err.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
     // --- Renderização Principal ---
     return (
         <div style={styles.container}>
             <h1 style={styles.header}>Registros</h1>
 
-            {/* Filtro de Mês */}
+            {/* Filtro de Data - Usando o mesmo estilo da Home */}
             {mesesDisponiveis.length > 0 && (
                 <div style={styles.filterContainer}>
                     <label htmlFor="mesFiltro" style={styles.filterLabel}>
-                        Filtrar por mês:
+                        Visualizando:
                     </label>
                     <select 
                         id="mesFiltro" 
@@ -275,7 +381,6 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                         onChange={(e) => setMesAnoSelecionado(e.target.value)}
                         style={styles.filterSelect}
                     >
-                        <option value="">Todos os meses</option>
                         {mesesDisponiveis.map(mesAno => {
                             const [m, a] = mesAno.split('/');
                             const nome = MONTH_NAMES_PT[parseInt(m, 10) - 1] || m;
@@ -289,25 +394,58 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                 </div>
             )}
 
-            {/* Totais de Receita e Despesa */}
+            {/* Cartões Fixos de Receita/Despesa e Barra de Balanço - Usando SummaryCards da Home */}
             {mesAnoSelecionado && (
-                <div style={styles.totalsContainer}>
-                    <div style={styles.totalCard}>
-                        <span style={styles.totalLabel}>Total Receita:</span>
-                        <span style={{...styles.totalValue, color: '#4bc0c0'}}>
-                            R$ {totalReceita.toFixed(2).replace('.', ',')}
-                        </span>
-                    </div>
-                    <div style={styles.totalCard}>
-                        <span style={styles.totalLabel}>Total Despesa:</span>
-                        <span style={{...styles.totalValue, color: '#ff6384'}}>
-                            R$ {totalDespesa.toFixed(2).replace('.', ',')}
-                        </span>
-                    </div>
+                <div style={{ 
+                    width: '100%', 
+                    maxWidth: '100%',
+                    marginBottom: '20px',
+                    boxSizing: 'border-box',
+                    overflowX: 'hidden'
+                }}>
+                    <SummaryCards 
+                        receita={totalReceita} 
+                        despesa={totalDespesa} 
+                    />
                 </div>
             )}
 
             {message && <p style={{textAlign: 'center', fontWeight: 'bold', color: isSaving ? 'blue' : (message.includes('Erro') ? 'red' : 'green')}}>{message}</p>}
+
+            {/* Barra de ações do modo seleção */}
+            {isSelectionMode && (
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '15px',
+                    backgroundColor: '#fff',
+                    borderRadius: '8px',
+                    marginBottom: '15px',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                }}>
+                    <span style={{ fontWeight: 'bold', color: '#333' }}>
+                        {selectedRows.size} registro(s) selecionado(s)
+                    </span>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                            onClick={cancelSelection}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Tabela de Registros */}
             <div style={styles.tableWrapper}>
@@ -318,8 +456,27 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {mappedRecords.map((record) => (
-                            <tr key={record.ROW_NUMBER} style={styles.tr}>
+                        {mappedRecords.map((record) => {
+                            const isSelected = selectedRows.has(record.ROW_NUMBER);
+                            return (
+                                <tr 
+                                    key={record.ROW_NUMBER} 
+                                    style={{
+                                        ...styles.tr,
+                                        backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
+                                        userSelect: 'none'
+                                    }}
+                                    onTouchStart={(e) => handleTouchStart(e, record.ROW_NUMBER)}
+                                    onTouchEnd={(e) => handleTouchEnd(e, record.ROW_NUMBER)}
+                                    onTouchCancel={handleTouchCancel}
+                                    onClick={() => {
+                                        if (isSelectionMode) {
+                                            toggleRowSelection(record.ROW_NUMBER);
+                                        } else {
+                                            // Comportamento normal (edição)
+                                        }
+                                    }}
+                                >
                                 {columns.map(col => {
                                     // Mapeamento correto para acessar os dados do record
                                     let displayValue;
@@ -370,21 +527,55 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                                         );
                                     }
                                     
+                                    // Se displayValue é um componente React, renderiza diretamente
+                                    if (React.isValidElement(displayValue)) {
+                                        return (
+                                            <td 
+                                                key={col} 
+                                                style={styles.td} 
+                                                onClick={() => {
+                                                    if (!isSelectionMode) {
+                                                        startDirectEdit(record, col);
+                                                    }
+                                                }}
+                                            >
+                                                {displayValue}
+                                            </td>
+                                        );
+                                    }
+                                    
                                     return (
-                                        <td key={col} style={styles.td} onClick={() => startDirectEdit(record, col)}>
+                                        <td 
+                                            key={col} 
+                                            style={styles.td} 
+                                            onClick={() => {
+                                                if (!isSelectionMode) {
+                                                    startDirectEdit(record, col);
+                                                }
+                                            }}
+                                        >
                                             {displayValue}
                                         </td>
                                     );
                                 })}
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
                 {mappedRecords.length === 0 && <p style={{textAlign: 'center', margin: '20px 0'}}>Nenhum registro encontrado.</p>}
             </div>
 
-            {/* BOTÃO FLUTUANTE PARA O FLUXO GUIADO */}
-            <FloatingButton onClick={startGuidedRecord} /> 
+            {/* BOTÃO FLUTUANTE - Muda conforme o modo */}
+            {isSelectionMode ? (
+                <FloatingButton 
+                    onClick={handleDeleteSelected}
+                    mode="delete"
+                    disabled={selectedRows.size === 0 || isSaving}
+                />
+            ) : (
+                <FloatingButton onClick={startGuidedRecord} />
+            )} 
 
             {/* -------------------------------------
                 MODAL PRINCIPAL PARA UX AVANÇADA
@@ -446,6 +637,7 @@ export default RegistrosPage;
 const styles = {
     container: { 
         padding: '15px', 
+        paddingTop: '80px', // Espaço para o título fixo
         fontFamily: 'Arial, sans-serif', 
         backgroundColor: '#f4f4f9', 
         minHeight: 'calc(100vh - 70px)',
@@ -460,55 +652,38 @@ const styles = {
         textAlign: 'center', 
         marginBottom: '15px', 
         color: '#333',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#f4f4f9',
+        padding: '15px',
+        zIndex: 100,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
     },
     filterContainer: {
-        marginBottom: '15px',
+        marginBottom: '20px',
+        textAlign: 'center',
         padding: '15px',
         backgroundColor: '#fff',
         borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+        width: '100%', 
+        boxSizing: 'border-box'
     },
     filterLabel: {
         display: 'block',
-        marginBottom: '8px',
-        fontWeight: 'bold',
-        fontSize: '14px',
-        color: '#333'
+        marginBottom: '10px',
+        fontWeight: 'bold'
     },
     filterSelect: {
-        width: '100%',
         padding: '10px',
         borderRadius: '5px',
         border: '1px solid #ccc',
+        width: '100%',
         fontSize: '16px',
         boxSizing: 'border-box'
-    },
-    totalsContainer: {
-        display: 'flex',
-        gap: '10px',
-        marginBottom: '15px',
-        flexWrap: 'wrap'
-    },
-    totalCard: {
-        flex: 1,
-        minWidth: '140px',
-        padding: '12px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
-    },
-    totalLabel: {
-        fontSize: '12px',
-        color: '#666',
-        marginBottom: '5px'
-    },
-    totalValue: {
-        fontSize: '18px',
-        fontWeight: 'bold'
     },
     tableWrapper: { 
         overflowX: 'auto', 

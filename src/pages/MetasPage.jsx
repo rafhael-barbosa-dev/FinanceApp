@@ -25,12 +25,11 @@ const cleanValue = (valorInput) => {
 };
 
 const formatMesDisplay = (mesStr) => {
-    // Converte MM/AA para "Mês de AAAA"
+    // Converte MM/AA para apenas "Mês"
     if (!mesStr || mesStr.length !== 5) return mesStr;
     const month = mesStr.substring(0, 2);
-    const year = mesStr.substring(3, 5);
     const monthName = MONTH_NAMES_PT[parseInt(month, 10) - 1] || month;
-    return `${monthName} de 20${year}`;
+    return monthName;
 };
 
 // Componente para formulário de nova meta
@@ -230,11 +229,11 @@ const MetasPage = ({ aggregatedData, reloadData }) => {
         <div style={styles.container}>
             <h1 style={styles.header}>Metas</h1>
 
-            {/* Filtro de Mês */}
+            {/* Filtro de Data - Usando o mesmo estilo da Home */}
             {mesesDisponiveis.length > 0 && (
                 <div style={styles.filterContainer}>
                     <label htmlFor="mesFiltro" style={styles.filterLabel}>
-                        Filtrar por mês:
+                        Visualizando:
                     </label>
                     <select 
                         id="mesFiltro" 
@@ -242,7 +241,6 @@ const MetasPage = ({ aggregatedData, reloadData }) => {
                         onChange={(e) => setMesAnoSelecionado(e.target.value)}
                         style={styles.filterSelect}
                     >
-                        <option value="">Todos os meses</option>
                         {mesesDisponiveis.map(mesAno => {
                             const [m, a] = mesAno.split('/');
                             const nome = MONTH_NAMES_PT[parseInt(m, 10) - 1] || m;
@@ -364,6 +362,7 @@ export default MetasPage;
 const styles = {
     container: {
         padding: '15px',
+        paddingTop: '80px', // Espaço para o título fixo
         fontFamily: 'Arial, sans-serif',
         backgroundColor: '#f4f4f9',
         minHeight: 'calc(100vh - 70px)',
@@ -378,27 +377,36 @@ const styles = {
         textAlign: 'center', 
         marginBottom: '15px', 
         color: '#333',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#f4f4f9',
+        padding: '15px',
+        zIndex: 100,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
     },
     filterContainer: {
-        marginBottom: '15px',
+        marginBottom: '20px',
+        textAlign: 'center',
         padding: '15px',
         backgroundColor: '#fff',
         borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+        width: '100%', 
+        boxSizing: 'border-box'
     },
     filterLabel: {
         display: 'block',
-        marginBottom: '8px',
-        fontWeight: 'bold',
-        fontSize: '14px',
-        color: '#333'
+        marginBottom: '10px',
+        fontWeight: 'bold'
     },
     filterSelect: {
-        width: '100%',
         padding: '10px',
         borderRadius: '5px',
         border: '1px solid #ccc',
+        width: '100%',
         fontSize: '16px',
         boxSizing: 'border-box'
     },

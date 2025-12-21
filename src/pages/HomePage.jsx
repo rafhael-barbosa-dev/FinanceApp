@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import GoalCard from '../components/GoalCard.jsx'; 
-import SummaryCards from '../components/SummaryCards.jsx'; 
+import SummaryCards from '../components/SummaryCards.jsx';
+import Modal from '../components/Modal.jsx'; 
 
 // Mapa de Mês/Ano (MM/YYYY) para Nome do Mês
 const MONTH_NAMES_PT = [
@@ -23,7 +24,11 @@ const localCleanValue = (valorInput) => {
 const HomePage = ({ aggregatedData }) => {
     // CRÍTICO: Usar o operador ?. e garantir arrays/objetos vazios como fallback
     const metasAcompanhamento = aggregatedData?.metasAcompanhamento || {};
-    const registroRawData = aggregatedData?.rawData?.registro || []; 
+    const registroRawData = aggregatedData?.rawData?.registro || [];
+    
+    // Estado para modal de registros da tag
+    const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+    const [selectedTag, setSelectedTag] = useState(null); 
     
     // 1. Encontra todos os Meses/Anos disponíveis e ordena (MM/YYYY)
     // Também extrai meses dos registros caso não haja metas
@@ -88,11 +93,16 @@ const HomePage = ({ aggregatedData }) => {
     // 4. Dados de metas filtrados
     const dadosDoMes = metasAcompanhamento[mesAnoSelecionado] || {};
     
-    // Converte o objeto de metas em uma lista (Array)
-    const listaMetas = Object.entries(dadosDoMes).map(([tag, dados]) => ({
-        tag,
-        ...dados
-    }));
+    // Converte o objeto de metas em uma lista (Array) e ordena por porcentagem (maior % primeiro)
+    const listaMetas = React.useMemo(() => {
+        const lista = Object.entries(dadosDoMes).map(([tag, dados]) => ({
+            tag,
+            ...dados,
+            porcentagem: dados.meta > 0 ? (dados.realizado / dados.meta) * 100 : (dados.realizado > 0 ? 100 : 0)
+        }));
+        // Ordena por porcentagem em ordem decrescente (maior % primeiro)
+        return lista.sort((a, b) => b.porcentagem - a.porcentagem);
+    }, [dadosDoMes]);
     
     // 5. Formata o título para o filtro
     const [mesStr, anoStr] = mesAnoSelecionado.split('/');
@@ -102,10 +112,49 @@ const HomePage = ({ aggregatedData }) => {
     const handleFilterChange = (e) => {
         setMesAnoSelecionado(e.target.value);
     };
+    
+    // Função para abrir modal com registros da tag
+    const handleTagClick = (tag) => {
+        setSelectedTag(tag);
+        setIsTagModalOpen(true);
+    };
+    
+    // Filtra registros pela tag selecionada e mês atual
+    const registrosDaTag = React.useMemo(() => {
+        if (!selectedTag || !mesAnoSelecionado) return [];
+        
+        return registroRawData
+            .filter(record => {
+                // Verifica se o registro pertence ao mês selecionado
+                const dataStr = record.Data;
+                if (!dataStr || typeof dataStr !== 'string' || dataStr.length < 10) return false;
+                const month = dataStr.substring(5, 7);
+                const year = dataStr.substring(0, 4);
+                const recordMesAno = `${month}/${year}`;
+                if (recordMesAno !== mesAnoSelecionado) return false;
+                
+                // Verifica se a tag está presente nas tags do registro
+                const tags = [record.Tag_1, record.Tag_2, record.Tag_3, record.Tag_4]
+                    .filter(t => t && t.toString().trim() !== '');
+                return tags.includes(selectedTag);
+            })
+            .map(record => ({
+                ...record,
+                Dia: record.Data ? record.Data.substring(8, 10) : '',
+                Descrição: record.Descrição || record.Descricao || '',
+                Valor: localCleanValue(record.Valor)
+            }))
+            .sort((a, b) => {
+                // Ordena por data (mais recente primeiro)
+                if (!a.Data || !b.Data) return 0;
+                return new Date(b.Data) - new Date(a.Data);
+            });
+    }, [selectedTag, mesAnoSelecionado, registroRawData]);
 
     // --- ESTILOS MOBILE-FIRST ---
     const containerStyle = {
         padding: '15px',
+        paddingTop: '80px', // Espaço para o título fixo
         fontFamily: 'Arial, sans-serif',
         minHeight: 'calc(100vh - 70px)',
         backgroundColor: '#f4f4f9',
@@ -122,6 +171,14 @@ const HomePage = ({ aggregatedData }) => {
         marginBottom: '15px',
         color: '#333',
         fontWeight: 'bold',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#f4f4f9',
+        padding: '15px',
+        zIndex: 100,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
     };
     
     const filterContainerStyle = {
@@ -174,7 +231,7 @@ const HomePage = ({ aggregatedData }) => {
 
     return (
         <div style={containerStyle}>
-            <h1 style={headerStyle}>Acompanhamento de Metas</h1>
+            <h1 style={headerStyle}>Acompanhamento</h1>
             
             {/* Filtro de Data */}
             <div style={filterContainerStyle}>
@@ -221,20 +278,20 @@ const HomePage = ({ aggregatedData }) => {
                 boxSizing: 'border-box',
                 overflowX: 'hidden' // Previne overflow do container pai
             }}>
-                <h2 style={{ fontSize: '18px', marginBottom: '15px' }}>Metas de {tituloFiltro}:</h2>
                 
                 <div style={cardsContainerStyle}>
                     {listaMetas.length > 0 ? (
                         listaMetas.map((item) => {
                             const tagColor = aggregatedData?.options?.tagsWithColors?.[item.tag] || '#4bc0c0';
                             return (
-                                <GoalCard
-                                    key={item.tag}
-                                    tag={item.tag}
-                                    meta={item.meta}
-                                    realizado={item.realizado}
-                                    tagColor={tagColor}
-                                />
+                                <div key={item.tag} onClick={() => handleTagClick(item.tag)} style={{ cursor: 'pointer' }}>
+                                    <GoalCard
+                                        tag={item.tag}
+                                        meta={item.meta}
+                                        realizado={item.realizado}
+                                        tagColor={tagColor}
+                                    />
+                                </div>
                             );
                         })
                     ) : (
@@ -242,6 +299,45 @@ const HomePage = ({ aggregatedData }) => {
                     )}
                 </div>
             </div>
+            
+            {/* Modal de Registros da Tag */}
+            <Modal
+                isOpen={isTagModalOpen}
+                onClose={() => {
+                    setIsTagModalOpen(false);
+                    setSelectedTag(null);
+                }}
+                title={`Registros da Tag: ${selectedTag || ''}`}
+            >
+                <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                    {registrosDaTag.length > 0 ? (
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+                                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '14px', fontWeight: 'bold' }}>Dia</th>
+                                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '14px', fontWeight: 'bold' }}>Descrição</th>
+                                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '14px', fontWeight: 'bold' }}>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {registrosDaTag.map((record, index) => (
+                                    <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                                        <td style={{ padding: '10px', fontSize: '14px' }}>{record.Dia}</td>
+                                        <td style={{ padding: '10px', fontSize: '14px' }}>{record.Descrição}</td>
+                                        <td style={{ padding: '10px', fontSize: '14px', textAlign: 'right', fontWeight: 'bold' }}>
+                                            R$ {record.Valor.toFixed(2).replace('.', ',')}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                            Nenhum registro encontrado para esta tag no mês selecionado.
+                        </p>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 };

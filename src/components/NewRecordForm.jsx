@@ -12,6 +12,25 @@ const styles = {
     selectedOption: { padding: '8px 12px', borderRadius: '5px', border: '1px solid #4bc0c0', backgroundColor: '#4bc0c0', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' },
     tagButton: { padding: '6px 10px', borderRadius: '5px', border: '1px solid #007bff', backgroundColor: '#f0f8ff', cursor: 'pointer', fontSize: '12px' },
     selectedTag: { padding: '6px 10px', borderRadius: '5px', border: '1px solid #007bff', backgroundColor: '#007bff', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' },
+    // Novos estilos para tags com cores
+    tagButtonColored: { 
+        padding: '8px 12px', 
+        borderRadius: '12px', 
+        border: '2px solid', 
+        cursor: 'pointer', 
+        fontSize: '14px',
+        fontWeight: 'bold',
+        transition: 'all 0.2s ease',
+    },
+    selectedTagColored: { 
+        padding: '8px 12px', 
+        borderRadius: '12px', 
+        border: '2px solid', 
+        cursor: 'pointer', 
+        fontSize: '14px',
+        fontWeight: 'bold',
+        transition: 'all 0.2s ease',
+    },
     // Botões de navegação/salvar
     buttonGroup: { display: 'flex', justifyContent: 'space-between', marginTop: '15px' },
     nextButton: { padding: '10px 15px', backgroundColor: '#4bc0c0', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' },
@@ -109,14 +128,30 @@ const NewRecordForm = ({ initialData, options, onSave, isSaving, guidedMode }) =
                            style={styles.inputField} autoFocus />
                 );
             case 5:
+                // Tags com cores no modo guiado
+                const tagsWithColorsGuided = options?.tagsWithColors || {};
                 return (
                     <div style={styles.tagOptionContainer}>
-                        {options.allTags.map(tag => (
-                            <button key={tag} style={formData.Tags?.includes(tag) ? styles.selectedTag : styles.tagButton}
-                                    onClick={() => toggleTag(tag)} disabled={isSaving}>
-                                {tag}
-                            </button>
-                        ))}
+                        {options.allTags.map(tag => {
+                            const tagColor = tagsWithColorsGuided[tag] || '#4bc0c0';
+                            const isSelected = formData.Tags?.includes(tag);
+                            return (
+                                <button 
+                                    key={tag} 
+                                    style={{
+                                        ...(isSelected ? styles.selectedTagColored : styles.tagButtonColored),
+                                        backgroundColor: isSelected ? tagColor : '#f0f0f0',
+                                        borderColor: tagColor,
+                                        color: isSelected ? '#fff' : '#333',
+                                        textShadow: isSelected ? '1px 1px 2px rgba(0,0,0,0.3)' : 'none',
+                                    }}
+                                    onClick={() => toggleTag(tag)} 
+                                    disabled={isSaving}
+                                >
+                                    {tag}
+                                </button>
+                            );
+                        })}
                     </div>
                 );
             default:
@@ -182,12 +217,29 @@ const NewRecordForm = ({ initialData, options, onSave, isSaving, guidedMode }) =
             
             <label style={{fontWeight: 'bold'}}>Tags ({formData.Tags?.length || 0}/4):</label>
             <div style={styles.tagOptionContainer}>
-                {options.allTags.map(tag => (
-                    <button key={tag} style={formData.Tags?.includes(tag) ? styles.selectedTag : styles.tagButton}
-                            onClick={() => toggleTag(tag)} disabled={isSaving}>
-                        {tag}
-                    </button>
-                ))}
+                {(() => {
+                    const tagsWithColors = options?.tagsWithColors || {};
+                    return options.allTags.map(tag => {
+                        const tagColor = tagsWithColors[tag] || '#4bc0c0';
+                        const isSelected = formData.Tags?.includes(tag);
+                        return (
+                            <button 
+                                key={tag} 
+                                style={{
+                                    ...(isSelected ? styles.selectedTagColored : styles.tagButtonColored),
+                                    backgroundColor: isSelected ? tagColor : '#f0f0f0',
+                                    borderColor: tagColor,
+                                    color: isSelected ? '#fff' : '#333',
+                                    textShadow: isSelected ? '1px 1px 2px rgba(0,0,0,0.3)' : 'none',
+                                }}
+                                onClick={() => toggleTag(tag)} 
+                                disabled={isSaving}
+                            >
+                                {tag}
+                            </button>
+                        );
+                    });
+                })()}
             </div>
             
             <button style={styles.nextButton} onClick={() => onSave(formData, 'ADD_RECORD')} disabled={isSaving || !isFormValid}>
