@@ -62,9 +62,10 @@ const ChartWithCenterText = ({ meta, realizado }) => {
 };
 
 // Componente principal do Cartão (Card)
-const GoalCard = ({ tag, meta, realizado }) => {
+const GoalCard = ({ tag, meta, realizado, tagColor }) => {
     const diferenca = meta - realizado;
     const isEstourado = diferenca < 0;
+    const color = tagColor || '#4bc0c0'; // Cor padrão se não fornecida
 
     // Lógica da Diferença Inteligente
     const smartDiferenca = () => {
@@ -102,9 +103,22 @@ const GoalCard = ({ tag, meta, realizado }) => {
         marginTop: '10px',
     };
 
+    // Estilo do título com highlight da cor da tag
+    const titleStyle = {
+        margin: '0 0 10px 0',
+        fontSize: '16px',
+        color: '#333',
+        padding: '5px 10px',
+        borderRadius: '5px',
+        backgroundColor: color,
+        color: '#fff',
+        textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+        fontWeight: 'bold'
+    };
+
     return (
         <div style={cardStyle}>
-            <h3 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#333' }}>{tag}</h3>
+            <h3 style={titleStyle}>{tag}</h3>
             
             <div style={{ width: '100px', height: '100px', marginBottom: '10px' }}>
                 <ChartWithCenterText meta={meta} realizado={realizado} />

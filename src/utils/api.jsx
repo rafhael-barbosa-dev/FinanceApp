@@ -1,49 +1,295 @@
-// src/utils/api.jsx
+// src/utils/api.jsx - AGORA SUPORTA GET, ADD E UPDATE
 
-/**
- * Envia dados para o servidor proxy (Backend Node.js/Render).
- * @param {string} backendUrl - O URL base do seu servidor Render (ex: https://proxy-app-xxxx.onrender.com).
- * @param {object} finalData - O objeto de dados a ser enviado (já formatado para a planilha).
- * @returns {object} O resultado da resposta do servidor.
- */
-export const postDataToBackend = async (backendUrl, finalData) => {
-    
-    // O endpoint de escrita no seu servidor Node.js é /api/add-registro
-    const endpoint = `${backendUrl}/api/add-registro`;
+// ***** CERTIFIQUE-SE QUE ESTA URL É A SUA URL ATIVA DO RENDER *****
+const BACKEND_RENDER_URL = 'https://financeapp-backend-6iv3.onrender.com';
+
+// -------------------------------------------------------------------------
+// 1. FUNÇÃO DE LEITURA (GET) - Usada em App.jsx
+// -------------------------------------------------------------------------
+
+export const fetchDataFromBackend = async () => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/get-all-data`;
+    try {
+        const response = await fetch(endpoint);
+        if (!response.ok) {
+            throw new Error(`Erro de rede: Status ${response.status}`);
+        }
+        
+        return await response.json(); 
+    } catch (error) {
+        console.error("Erro ao buscar dados do Backend:", error);
+        throw new Error(`Falha ao carregar dados: ${error.message}. Verifique o servidor Render.`);
+    }
+};
+
+
+// -------------------------------------------------------------------------
+// 2. FUNÇÃO DE ADIÇÃO (POST /api/add-registro) - Usada em RegistrosPage.jsx
+// -------------------------------------------------------------------------
+
+export const addDataToBackend = async (data) => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/add-registro`;
 
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
-            mode: 'cors', // Necessário para evitar problemas de CORS entre GitHub Pages e Render
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            // Envia o objeto de dados diretamente, conforme o backend Node.js espera
-            body: JSON.stringify(finalData), 
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data), 
         });
 
-        // Verifica se a resposta HTTP é 2xx (Sucesso)
         if (!response.ok) {
-            // Se o servidor retornar 4xx ou 5xx, lança um erro com o status
             throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
         }
 
         const result = await response.json();
         
-        // Verifica a flag de sucesso definida pelo seu backend Node.js
         if (!result.success) {
-            // Se a requisição HTTP for 200, mas o servidor Node.js retornar {success: false}
-            throw new Error(`Erro do Servidor Proxy: ${result.message || 'Falha desconhecida.'}`);
+            throw new Error(`Erro do Servidor Proxy: ${result.message || 'Falha na adição de registro.'}`);
         }
         
         return result;
 
     } catch (error) {
-        console.error("Erro ao enviar dados para o Backend:", error);
+        console.error("Erro ao enviar dados para o Backend (ADD):", error);
         throw error;
     }
 };
 
 
-// IMPORTANTE: Se você tiver outras funções de API, elas devem ser adaptadas aqui.
-// Remova ou comente a função original 'postDataToAppsScript' para evitar conflitos.
+// -------------------------------------------------------------------------
+// 3. FUNÇÃO DE ATUALIZAÇÃO (POST /api/update-registro) - Usada em RegistrosPage.jsx
+// -------------------------------------------------------------------------
+
+export const updateDataInBackend = async ({ rowNumber, column, value }) => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/update-registro`;
+    
+    const payload = { 
+        ROW_NUMBER: rowNumber,
+        column: column,
+        value: value 
+    };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload), 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(`Erro do Servidor Proxy: ${result.message || 'Falha na atualização de registro.'}`);
+        }
+        
+        return result;
+
+    } catch (error) {
+        console.error("Erro ao enviar dados para o Backend (UPDATE):", error);
+        throw error;
+    }
+};
+
+// -------------------------------------------------------------------------
+// 4. FUNÇÕES PARA METAS
+// -------------------------------------------------------------------------
+
+export const addMetaToBackend = async (data) => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/add-meta`;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data), 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(`Erro do Servidor: ${result.message || 'Falha na adição de meta.'}`);
+        }
+        
+        return result;
+
+    } catch (error) {
+        console.error("Erro ao enviar meta para o Backend (ADD):", error);
+        throw error;
+    }
+};
+
+export const updateMetaInBackend = async ({ rowNumber, column, value }) => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/update-meta`;
+    
+    const payload = { 
+        ROW_NUMBER: rowNumber,
+        column: column,
+        value: value 
+    };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload), 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(`Erro do Servidor: ${result.message || 'Falha na atualização de meta.'}`);
+        }
+        
+        return result;
+
+    } catch (error) {
+        console.error("Erro ao atualizar meta no Backend (UPDATE):", error);
+        throw error;
+    }
+};
+
+export const deleteMetaFromBackend = async ({ rowNumber }) => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/delete-meta`;
+    
+    const payload = { ROW_NUMBER: rowNumber };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload), 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(`Erro do Servidor: ${result.message || 'Falha na deleção de meta.'}`);
+        }
+        
+        return result;
+
+    } catch (error) {
+        console.error("Erro ao deletar meta no Backend (DELETE):", error);
+        throw error;
+    }
+};
+
+// -------------------------------------------------------------------------
+// 5. FUNÇÕES PARA ORGANIZADORES/TAGS
+// -------------------------------------------------------------------------
+
+export const addOrganizadorToBackend = async (data) => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/add-organizador`;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data), 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(`Erro do Servidor: ${result.message || 'Falha na adição de tag.'}`);
+        }
+        
+        return result;
+
+    } catch (error) {
+        console.error("Erro ao enviar tag para o Backend (ADD):", error);
+        throw error;
+    }
+};
+
+export const updateOrganizadorInBackend = async ({ rowNumber, column, value }) => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/update-organizador`;
+    
+    const payload = { 
+        ROW_NUMBER: rowNumber,
+        column: column,
+        value: value 
+    };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload), 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(`Erro do Servidor: ${result.message || 'Falha na atualização de tag.'}`);
+        }
+        
+        return result;
+
+    } catch (error) {
+        console.error("Erro ao atualizar tag no Backend (UPDATE):", error);
+        throw error;
+    }
+};
+
+export const deleteOrganizadorFromBackend = async ({ rowNumber }) => {
+    const endpoint = `${BACKEND_RENDER_URL}/api/delete-organizador`;
+    
+    const payload = { ROW_NUMBER: rowNumber };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload), 
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na requisição POST: Status ${response.status} (${response.statusText})`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(`Erro do Servidor: ${result.message || 'Falha na deleção de tag.'}`);
+        }
+        
+        return result;
+
+    } catch (error) {
+        console.error("Erro ao deletar tag no Backend (DELETE):", error);
+        throw error;
+    }
+};

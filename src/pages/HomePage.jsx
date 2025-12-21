@@ -1,19 +1,15 @@
-// src/pages/HomePage.jsx - ATUALIZADO
+// src/pages/HomePage.jsx - CORRIGIDO: Tratamento de Nullish Coalescing e Dados Vazios
+
 import React, { useState, useEffect } from 'react';
 import GoalCard from '../components/GoalCard.jsx'; 
-import SummaryCards from '../components/SummaryCards.jsx'; // NOVO IMPORT
+import SummaryCards from '../components/SummaryCards.jsx'; 
 
-// Mapa de Mês/Ano (MM/YYYY) para Nome do Mês (Para o filtro)
+// Mapa de Mês/Ano (MM/YYYY) para Nome do Mês
 const MONTH_NAMES_PT = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-/**
- * Função para limpar e converter o valor (copiada do dataProcessor para uso local seguro)
- * @param {string | number} valorInput - O valor.
- * @returns {number} O valor numérico (float).
- */
 const localCleanValue = (valorInput) => {
     if (typeof valorInput === 'number') { return valorInput; }
     if (!valorInput || typeof valorInput !== 'string') { return 0; }
@@ -25,33 +21,53 @@ const localCleanValue = (valorInput) => {
 
 
 const HomePage = ({ aggregatedData }) => {
+    // CRÍTICO: Usar o operador ?. e garantir arrays/objetos vazios como fallback
     const metasAcompanhamento = aggregatedData?.metasAcompanhamento || {};
-    const registroRawData = aggregatedData?.rawData?.registro || []; // Dados brutos de Registro
+    const registroRawData = aggregatedData?.rawData?.registro || []; 
     
     // 1. Encontra todos os Meses/Anos disponíveis e ordena (MM/YYYY)
-    const mesesDisponiveis = Object.keys(metasAcompanhamento).sort();
+    // Também extrai meses dos registros caso não haja metas
+    const mesesDasMetas = Object.keys(metasAcompanhamento).sort();
+    const mesesDosRegistros = React.useMemo(() => {
+        const mesesSet = new Set();
+        registroRawData.forEach(record => {
+            const dataStr = record.Data;
+            if (dataStr && typeof dataStr === 'string' && dataStr.length >= 10) {
+                const month = dataStr.substring(5, 7);
+                const year = dataStr.substring(0, 4);
+                mesesSet.add(`${month}/${year}`);
+            }
+        });
+        return Array.from(mesesSet).sort();
+    }, [registroRawData]);
     
-    // 2. Define o estado para o mês/ano selecionado (começa no mês mais recente)
-    const [mesAnoSelecionado, setMesAnoSelecionado] = useState(mesesDisponiveis[mesesDisponiveis.length - 1] || '');
+    // Combina ambos os arrays e remove duplicatas
+    const mesesDisponiveis = React.useMemo(() => {
+        const todosMeses = [...new Set([...mesesDasMetas, ...mesesDosRegistros])].sort();
+        return todosMeses;
+    }, [mesesDasMetas, mesesDosRegistros]);
+    
+    const [mesAnoSelecionado, setMesAnoSelecionado] = useState('');
 
-    // 3. Atualiza o estado quando os dados são carregados/alterados
+    // 2. Atualiza o estado quando os dados são carregados/alterados
     useEffect(() => {
-        if (!mesAnoSelecionado && mesesDisponiveis.length > 0) {
+        if (mesesDisponiveis.length > 0 && !mesAnoSelecionado) {
+            // Seleciona o mês mais recente
             setMesAnoSelecionado(mesesDisponiveis[mesesDisponiveis.length - 1]);
         }
-    }, [mesesDisponiveis, mesAnoSelecionado]);
+    }, [mesesDisponiveis]);
 
-    // 4. Lógica para calcular os totais mensais (Receita/Despesa)
+    // 3. Lógica para calcular os totais mensais
     const { receitaMensal, despesaMensal } = React.useMemo(() => {
         let receita = 0;
         let despesa = 0;
 
-        // Filtra os registros para o mês/ano selecionado
+        if (!mesAnoSelecionado) return { receitaMensal: 0, despesaMensal: 0 };
+        
         registroRawData.forEach(record => {
             const dataStr = record.Data; 
             if (!dataStr || typeof dataStr !== 'string' || dataStr.length < 10) return;
             
-            // Assume formato YYYY-MM-DD e converte para MM/YYYY
             const month = dataStr.substring(5, 7); 
             const year = dataStr.substring(0, 4); 
             const recordMesAno = `${month}/${year}`; 
@@ -69,7 +85,7 @@ const HomePage = ({ aggregatedData }) => {
         return { receitaMensal: receita, despesaMensal: despesa };
     }, [registroRawData, mesAnoSelecionado]);
 
-    // 5. Dados de metas filtrados
+    // 4. Dados de metas filtrados
     const dadosDoMes = metasAcompanhamento[mesAnoSelecionado] || {};
     
     // Converte o objeto de metas em uma lista (Array)
@@ -78,7 +94,7 @@ const HomePage = ({ aggregatedData }) => {
         ...dados
     }));
     
-    // 6. Formata o título para o filtro
+    // 5. Formata o título para o filtro
     const [mesStr, anoStr] = mesAnoSelecionado.split('/');
     const mesNome = MONTH_NAMES_PT[parseInt(mesStr, 10) - 1] || 'Mês Inválido';
     const tituloFiltro = `${mesNome} de ${anoStr}`;
@@ -87,47 +103,66 @@ const HomePage = ({ aggregatedData }) => {
         setMesAnoSelecionado(e.target.value);
     };
 
-    // --- ESTILOS ---
+    // --- ESTILOS MOBILE-FIRST ---
     const containerStyle = {
-        padding: '20px',
-        fontFamily: 'Arial',
-        minHeight: '100vh',
+        padding: '15px',
+        fontFamily: 'Arial, sans-serif',
+        minHeight: 'calc(100vh - 70px)',
         backgroundColor: '#f4f4f9',
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        overflowX: 'hidden', // Previne scroll horizontal no container principal
     };
     
     const headerStyle = {
-        fontSize: '28px',
+        fontSize: '24px',
         textAlign: 'center',
-        marginBottom: '20px',
+        marginBottom: '15px',
         color: '#333',
+        fontWeight: 'bold',
     };
     
     const filterContainerStyle = {
-        marginBottom: '30px',
+        marginBottom: '20px',
         textAlign: 'center',
-        padding: '10px',
+        padding: '15px',
         backgroundColor: '#fff',
         borderRadius: '8px',
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
         width: '100%', 
-        boxSizing: 'border-box' // Garante que padding não afete a largura total
+        boxSizing: 'border-box'
     };
     
     const cardsContainerStyle = {
         display: 'flex',
-        overflowX: 'scroll', 
-        paddingBottom: '20px', 
-        scrollbarWidth: 'none', 
-        WebkitOverflowScrolling: 'touch', // Melhor rolagem no iOS
-        // Esconde a barra de rolagem no Webkit (Chrome, Safari)
-        '&::-webkit-scrollbar': { display: 'none' } 
+        overflowX: 'auto', 
+        overflowY: 'hidden',
+        paddingBottom: '20px',
+        gap: '10px',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'thin',
+        width: '100%',
+        boxSizing: 'border-box',
     };
 
-    if (mesesDisponiveis.length === 0) {
+    // Se não há dados ou mês selecionado, mostra mensagem de carregamento
+    if (!aggregatedData || mesesDisponiveis.length === 0) {
         return (
             <div style={containerStyle}>
                 <h1 style={headerStyle}>Home Dashboard</h1>
-                <p style={{ textAlign: 'center', color: '#ff6384' }}>Ainda não há dados de "Registro" ou "Metas" para calcular o acompanhamento por mês.</p>
+                <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                    {!aggregatedData ? 'Carregando dados...' : 'Nenhuma informação encontrada na planilha.'}
+                </p>
+            </div>
+        );
+    }
+    
+    if (!mesAnoSelecionado) {
+        return (
+            <div style={containerStyle}>
+                <h1 style={headerStyle}>Home Dashboard</h1>
+                <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>Carregando...</p>
             </div>
         );
     }
@@ -145,7 +180,6 @@ const HomePage = ({ aggregatedData }) => {
                     id="mesFiltro" 
                     value={mesAnoSelecionado} 
                     onChange={handleFilterChange}
-                    // CORREÇÃO: Garante 100% de largura para adaptação mobile
                     style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc', width: '100%', fontSize: '16px', boxSizing: 'border-box' }}
                 >
                     {mesesDisponiveis.map(mesAno => {
@@ -160,26 +194,32 @@ const HomePage = ({ aggregatedData }) => {
                 </select>
             </div>
             
-            {/* NOVO: Cartões Fixos de Receita/Despesa e Barra de Balanço */}
-            <SummaryCards 
-                receita={receitaMensal} 
-                despesa={despesaMensal} 
-            />
+            {/* Cartões Fixos de Receita/Despesa e Barra de Balanço - FORA da rolagem */}
+            <div style={{ width: '100%', marginBottom: '20px' }}>
+                <SummaryCards 
+                    receita={receitaMensal} 
+                    despesa={despesaMensal} 
+                />
+            </div>
             
-            {/* Cartões de Meta com Rolagem Horizontal */}
-            <div style={{ padding: '10px 0' }}>
+            {/* Cartões de Meta com Rolagem Horizontal - APENAS ESTES TÊM SCROLL */}
+            <div style={{ padding: '10px 0', width: '100%' }}>
                 <h2 style={{ fontSize: '18px', marginBottom: '15px' }}>Metas de {tituloFiltro}:</h2>
                 
                 <div style={cardsContainerStyle}>
                     {listaMetas.length > 0 ? (
-                        listaMetas.map((item) => (
-                            <GoalCard
-                                key={item.tag}
-                                tag={item.tag}
-                                meta={item.meta}
-                                realizado={item.realizado}
-                            />
-                        ))
+                        listaMetas.map((item) => {
+                            const tagColor = aggregatedData?.options?.tagsWithColors?.[item.tag] || '#4bc0c0';
+                            return (
+                                <GoalCard
+                                    key={item.tag}
+                                    tag={item.tag}
+                                    meta={item.meta}
+                                    realizado={item.realizado}
+                                    tagColor={tagColor}
+                                />
+                            );
+                        })
                     ) : (
                         <p style={{ paddingLeft: '10px', color: '#777' }}>Nenhuma meta definida para o mês selecionado.</p>
                     )}

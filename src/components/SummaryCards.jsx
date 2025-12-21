@@ -104,10 +104,12 @@ const SummaryCards = ({ receita, despesa }) => {
         display: 'flex',
         justifyContent: 'space-between',
         margin: '0 -5px', // Compensa a margem dos cartões internos
+        width: '100%',
+        boxSizing: 'border-box',
     };
 
     return (
-        <div style={{ marginBottom: '30px' }}>
+        <div style={{ marginBottom: '30px', width: '100%', boxSizing: 'border-box' }}>
             <div style={containerStyle}>
                 <SummaryCard title="Total Receita" value={receita} color="#4bc0c0" />
                 <SummaryCard title="Total Despesa" value={despesa} color="#ff6384" />

@@ -1,42 +1,81 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+// src/App.jsx - CORRIGIDO: Leitura via Backend Render
+import React, { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { processAllData } from './utils/dataProcessor.jsx';
+
+// Importa a nova função de API (GET)
+import { fetchDataFromBackend } from './utils/api'; 
+
+import Navigation from './components/Navigation.jsx';
+import HomePage from './pages/HomePage.jsx'; 
+import RegistrosPage from './pages/RegistrosPage.jsx'; 
+import './App.css' 
+
+// Remove a URL do APPS_SCRIPT_URL (não é mais usada para leitura)
+// Agora a URL do backend está definida dentro de api.jsx
+
+function App() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [aggregatedData, setAggregatedData] = useState(null); 
+  const location = useLocation();
+
+  const activePage = location.pathname === '/' ? 'Home' : 
+                     location.pathname.startsWith('/registros') ? 'Registros' : 
+                     location.pathname === '/metas' ? 'Metas' : 
+                     '';
+
+  // 1. FUNÇÃO ESTÁVEL DE BUSCA DE DADOS (AGORA USA O BACKEND RENDER)
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+        // Chamada direta ao novo utilitário de API (GET)
+        const rawData = await fetchDataFromBackend(); 
+        
+        // O rawData já está no formato { registro: [], metas: [], organizadores: [] }
+        const processed = processAllData(rawData);
+        setAggregatedData(processed);
+
+    } catch (err) {
+        console.error("Falha ao carregar dados:", err);
+        setError(`Falha ao carregar dados: ${err.message}. Verifique o servidor Render.`);
+    } finally {
+        setLoading(false);
+    }
+  }, []); // Sem dependências externas, pois a URL está em api.jsx
+
+  // 2. FUNÇÃO ESTÁVEL DE RELOAD (passada para RegistrosPage)
+  const reloadData = useCallback(() => {
+    fetchData();
+  }, [fetchData]);
+  
+  // 3. CARREGAMENTO INICIAL
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]); 
+
+  // MENSAGEM DE CARREGAMENTO ATUALIZADA
+  if (loading) return <div style={{ textAlign: 'center', padding: '50px' }}>Carregando dados da planilha via Render...</div>;
+  if (error) return <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>{error}</div>;
+
+  return (
+    <div className="App" style={{ paddingBottom: '70px' }}>
+      <Routes>
+        <Route path="/" element={<HomePage aggregatedData={aggregatedData} />} />
+        
+        {/* PASSANDO A FUNÇÃO RELOADDATA AQUI */}
+        <Route path="/registros" element={<RegistrosPage aggregatedData={aggregatedData} reloadData={reloadData} />} />
+
+        <Route path="/metas" element={<div>Página Metas (Em Construção)</div>} />
+        <Route path="/tags" element={<div>Página Tags (Em Construção)</div>} />
+        <Route path="/caixinhas" element={<div>Página Caixinhas (Em Construção)</div>} />
+        <Route path="*" element={<div>Página Não Encontrada</div>} />
+      </Routes>
+      <Navigation active={activePage} />
+    </div>
+  );
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
+export default App;

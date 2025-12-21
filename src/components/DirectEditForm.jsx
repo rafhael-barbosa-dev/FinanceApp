@@ -1,9 +1,9 @@
-// src/components/DirectEditForm.jsx - CORREÇÃO UX E SALVAMENTO
+// src/components/DirectEditForm.jsx - ADAPTADO PARA ATUALIZAÇÃO UNITÁRIA
 
 import React, { useState } from 'react';
 import DatePicker from 'react-datepicker';
 
-// Função de limpeza de valor (copiada para garantir a exibição correta)
+// Funções de formatação (mantidas)
 const cleanValue = (valorInput) => {
     if (typeof valorInput === 'number') { return valorInput; }
     if (!valorInput || typeof valorInput !== 'string') { return 0; }
@@ -20,29 +20,117 @@ const formatDateDisplay = (dateStr) => {
 
 
 const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
-    // O valor ORIGINAL do registro, NUNCA MUDA, usado para exibição estática
-    const originalValue = record[column]; 
-    
-    // 1. ESTADO LOCAL: Usado para o valor que o usuário está digitando
-    // Inicializa com o valor limpo para o input de número
-    const [localValue, setLocalValue] = useState(
-        column === 'Valor' ? cleanValue(originalValue) : originalValue
-    );
-
-    // Função de save 
-    const saveDirectEdit = () => {
-        onSave(
-            {...record, [column]: localValue}, 
-            'UPDATE_RECORD', 
-            column
-        );
+    // Obtém o valor original baseado na coluna
+    // IMPORTANTE: Backend retorna 'Descricao' (sem til), mas o frontend usa 'Descrição' (com til) para exibição
+    let originalValue;
+    if (column === 'Tags') {
+        // Para Tags, monta o array a partir das colunas Tag_1, Tag_2, Tag_3, Tag_4
+        originalValue = [
+            record.Tag_1 || '',
+            record.Tag_2 || '',
+            record.Tag_3 || '',
+            record.Tag_4 || ''
+        ].filter(tag => tag && tag.toString().trim() !== '');
+    } else if (column === 'Descrição') {
+        // Backend retorna 'Descricao' (sem til)
+        originalValue = record.Descricao || record.Descrição || '';
+    } else {
+        originalValue = record[column] || '';
     }
     
-    // 2. Renderização de Input Específico
+    const [localValue, setLocalValue] = useState(() => {
+        if (column === 'Valor' && typeof originalValue !== 'object') {
+            return cleanValue(originalValue);
+        } else if (column === 'Tags') {
+            return originalValue || [];
+        } else {
+            return originalValue;
+        }
+    });
+
+    // Função de save que dispara a ação UPDATE_RECORD
+    const saveDirectEdit = () => {
+        if (column === 'Tags') {
+            // Para Tags, precisamos atualizar todas as 4 colunas (Tag_1, Tag_2, Tag_3, Tag_4)
+            const tagsArray = Array.isArray(localValue) ? localValue : [];
+            
+            // Preenche o array até 4 elementos
+            const newTags = [...tagsArray];
+            while (newTags.length < 4) {
+                newTags.push('');
+            }
+            
+            // Atualiza cada tag individualmente (o backend atualiza uma célula por vez)
+            // Faz as atualizações sequencialmente para garantir ordem
+            const updateTags = async () => {
+                for (let i = 0; i < 4; i++) {
+                    const tagColumn = `Tag_${i + 1}`;
+                    const newTagValue = newTags[i] || '';
+                    const currentTagValue = record[tagColumn] || '';
+                    
+                    // Só atualiza se o valor mudou
+                    if (newTagValue !== currentTagValue) {
+                        try {
+                            await onSave(
+                                {...record, [tagColumn]: newTagValue}, 
+                                'UPDATE_RECORD', 
+                                tagColumn
+                            );
+                        } catch (err) {
+                            console.error(`Erro ao atualizar ${tagColumn}:`, err);
+                        }
+                    }
+                }
+            };
+            
+            updateTags();
+
+        } else {
+            // Mapeamento correto dos nomes das colunas do frontend para a planilha
+            let columnToUpdate = column;
+            let valueToSave = localValue;
+            
+            // Tratamento especial para cada tipo de coluna
+            if (column === 'Data') {
+                columnToUpdate = 'Data';
+                valueToSave = dateToInput(localValue); // Converte para YYYY-MM-DD
+            } else if (column === 'Valor') {
+                columnToUpdate = 'Valor';
+                valueToSave = cleanValue(localValue); // Converte para número
+            } else if (column === 'Descrição') {
+                // Backend espera 'Descricao' (sem til) conforme COLUMN_MAP
+                columnToUpdate = 'Descricao';
+                valueToSave = localValue || '';
+            } else if (column === 'Tipo') {
+                columnToUpdate = 'Tipo';
+                valueToSave = localValue || '';
+            } else if (column === 'Mês') {
+                // Para Metas, mapeia 'Mês' para 'Mes'
+                columnToUpdate = 'Mes';
+                valueToSave = localValue || '';
+            } else if (column === 'Valor' && record.Meta !== undefined) {
+                // Para Metas, mapeia 'Valor' para 'Meta'
+                columnToUpdate = 'Meta';
+                valueToSave = cleanValue(localValue);
+            }
+            
+            // Determina a ação baseado no contexto (se tem Meta, é UPDATE_META, senão UPDATE_RECORD)
+            const action = record.Meta !== undefined ? 'UPDATE_META' : 'UPDATE_RECORD';
+            
+            onSave(
+                {...record, [columnToUpdate]: valueToSave}, 
+                action, 
+                columnToUpdate // Envia o nome correto da coluna da planilha
+            );
+        }
+    }
+    
+    // 2. Renderização de Input Específico (UX AVANÇADA)
     let inputComponent;
 
     switch (column) {
         case 'Data':
+            // Calendar Picker
             inputComponent = (
                 <DatePicker
                     selected={localValue}
@@ -53,6 +141,7 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
             );
             break;
         case 'Tipo':
+            // Lightbox de Opções (Tipo)
             inputComponent = (
                 <div style={styles.optionContainer}>
                     {options.tipos.map(tipo => (
@@ -65,28 +154,61 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
             );
             break;
         case 'Valor':
+             // Input para Valor (usado tanto em Registros quanto em Metas)
             inputComponent = (
                 <input type="number" step="0.01" 
-                       // Usa o localValue para rastrear a digitação
                        value={localValue} 
                        onChange={(e) => setLocalValue(e.target.value)}
                        style={styles.inputField} autoFocus />
             );
             break;
-        case 'Descrição':
+        case 'Mês':
+            // Input para Mês (formato MM/AA)
             inputComponent = (
-                <textarea rows="3" defaultValue={originalValue} 
+                <input type="text" 
+                       value={localValue || ''} 
+                       onChange={(e) => {
+                           let val = e.target.value.replace(/\D/g, '');
+                           if (val.length >= 2) {
+                               val = val.substring(0, 2) + '/' + val.substring(2, 4);
+                           }
+                           setLocalValue(val);
+                       }}
+                       placeholder="MM/AA"
+                       maxLength={5}
+                       style={styles.inputField} autoFocus />
+            );
+            break;
+        case 'Tag':
+            // Lightbox de Seleção de Tag (para Metas)
+            inputComponent = (
+                <div style={styles.tagOptionContainer}>
+                    {options.allTags.map(tag => (
+                        <button key={tag} style={localValue === tag ? styles.selectedTag : styles.tagButton}
+                                onClick={() => setLocalValue(tag)} disabled={isSaving}>
+                            {tag}
+                        </button>
+                    ))}
+                </div>
+            );
+            break;
+        case 'Descrição':
+            // Textarea para Descrição (a coluna na planilha é 'Descricao' sem til)
+            inputComponent = (
+                <textarea rows="3" 
+                       value={localValue || ''} 
                        onChange={(e) => setLocalValue(e.target.value)} 
                        style={styles.inputField} autoFocus />
             );
             break;
         case 'Tags':
+            // Lightbox de Seleção Múltipla (Tags)
             const toggleTag = (tag) => {
-                const currentTags = localValue || [];
+                const currentTags = Array.isArray(localValue) ? localValue : [];
                 let newTags;
                 if (currentTags.includes(tag)) {
                     newTags = currentTags.filter(t => t !== tag);
-                } else if (currentTags.length < 4) {
+                } else if (currentTags.length < 4) { // Limite de 4 Tags
                     newTags = [...currentTags, tag];
                 } else {
                     newTags = currentTags;
@@ -94,10 +216,12 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
                 setLocalValue(newTags); 
             };
             
+            const tagsArray = Array.isArray(localValue) ? localValue : [];
+            
             inputComponent = (
                 <div style={{ ...styles.tagOptionContainer, justifyContent: 'flex-start' }}>
                     {options.allTags.map(tag => (
-                        <button key={tag} style={localValue.includes(tag) ? styles.selectedTag : styles.tagButton}
+                        <button key={tag} style={tagsArray.includes(tag) ? styles.selectedTag : styles.tagButton}
                                 onClick={() => toggleTag(tag)} disabled={isSaving}>
                             {tag}
                         </button>
@@ -109,22 +233,28 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
             inputComponent = <p>Campo indisponível para edição.</p>;
     }
 
+    // Formata o valor original para exibição
+    const getOriginalValueDisplay = () => {
+        if (column === 'Data') {
+            return formatDateDisplay(dateToInput(originalValue));
+        } else if (column === 'Valor') {
+            return `R$ ${cleanValue(originalValue).toFixed(2).replace('.', ',')}`;
+        } else if (column === 'Tags') {
+            const tagsArray = Array.isArray(originalValue) ? originalValue : [];
+            return tagsArray.length > 0 ? tagsArray.join(', ') : 'Nenhuma tag';
+        } else {
+            return originalValue?.toString() || '';
+        }
+    };
+
     return (
         <div>
-            {/* FIX UX: Mostrar o Valor ORIGINAL, sem o state local */}
             <p style={{marginBottom: '10px'}}>
-                Valor Atual: **{
-                    column === 'Data' 
-                    ? formatDateDisplay(dateToInput(originalValue)) 
-                    : column === 'Valor' 
-                      ? `R$ ${cleanValue(originalValue).toFixed(2).replace('.', ',')}` // Formata o valor original para exibição
-                      : originalValue?.toString() || ''
-                }**
+                **Editando:** {column}. Valor atual: {getOriginalValueDisplay()}
             </p>
             
             {inputComponent}
             
-            {/* Botão de salvar para edição direta */}
             <button style={styles.nextButton} 
                     onClick={saveDirectEdit} 
                     disabled={isSaving}>
@@ -136,7 +266,7 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
 
 export default DirectEditForm;
 
-// Estilos (copiados do RegistrosPage para este componente)
+// Estilos (mantidos)
 const styles = {
     inputField: { width: '100%', padding: '10px', boxSizing: 'border-box', borderRadius: '5px', border: '1px solid #ccc', fontSize: '16px' },
     optionContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', padding: '10px 0', maxHeight: '150px', overflowY: 'auto' },

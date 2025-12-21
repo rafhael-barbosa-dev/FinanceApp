@@ -1,9 +1,6 @@
-// src/utils/dataProcessor.jsx - CORRIGIDO PARA FORMATO YYYY-MM-DD
-
-// (Mantendo cleanValue e processRegistroData idênticos ao passo anterior, pois estão corretos)
+// src/utils/dataProcessor.jsx - REFORÇADO E NORMALIZADO PARA NOVOS DADOS
 
 const cleanValue = (valorInput) => {
-    // ... (código da cleanValue) ...
     if (typeof valorInput === 'number') { return valorInput; }
     if (!valorInput || typeof valorInput !== 'string') { return 0; }
     const cleaned = valorInput
@@ -12,11 +9,15 @@ const cleanValue = (valorInput) => {
     return isNaN(value) ? 0 : value;
 };
 
+// --- FUNÇÃO DE PROCESSAMENTO DE REGISTRO ---
 const processRegistroData = (records) => {
-    // ... (código da processRegistroData) ...
     const totalByType = {};
     const expensesByCategory = {};
+
+    // 1. Tratamento e Normalização da Descrição
     records.forEach(record => {
+        // Normaliza a coluna Descrição (com ou sem til) para 'Descricao' no código
+        const descricao = record.Descrição || record.Descricao || '';
         const valorNumerico = cleanValue(record.Valor); 
         const tipo = record.Tipo; 
         const categoria = record.Tag_1;
@@ -34,24 +35,24 @@ const processRegistroData = (records) => {
     return { totalByType, expensesByCategory };
 };
 
-// --- FUNÇÃO CORRIGIDA PARA DATA YYYY-MM-DD ---
+// --- FUNÇÃO DE PROCESSAMENTO DE METAS (Acompanhamento) ---
 const processMetasAcompanhamento = (registro, metas) => {
     const realizadoPorMesTag = {};
     const TAG_COLUMNS = ['Tag_1', 'Tag_2', 'Tag_3', 'Tag_4']; 
     
+    // 1. Calcula o Realizado por Mês/Tag
     registro.forEach(rec => {
         if (rec.Tipo !== 'Despesa') return; 
         
         const valorNumerico = cleanValue(rec.Valor); 
-        const dataStr = rec.Data; // Recebido como YYYY-MM-DD
+        const dataStr = rec.Data; 
 
         if (!dataStr || typeof dataStr !== 'string' || dataStr.length < 10) return;
 
-        // ########## CORREÇÃO APLICADA AQUI ##########
-        const year = dataStr.substring(0, 4); // Ex: 2025
-        const month = dataStr.substring(5, 7); // Ex: 12
-        const mesAno = `${month}/${year}`; // Resultado: 12/2025
-        // ############################################
+        // Extrai MM/YYYY do formato YYYY-MM-DD
+        const year = dataStr.substring(0, 4); 
+        const month = dataStr.substring(5, 7);
+        const mesAno = `${month}/${year}`; 
 
         if (!realizadoPorMesTag[mesAno]) {
             realizadoPorMesTag[mesAno] = {};
@@ -68,7 +69,7 @@ const processMetasAcompanhamento = (registro, metas) => {
         });
     });
 
-    // 2. Cruza com as Metas (Esta parte não mudou, pois já convertia Metas para MM/YYYY)
+    // 2. Cruza com as Metas
     const acompanhamentoFinal = {};
     
     metas.forEach(metaItem => {
@@ -76,7 +77,7 @@ const processMetasAcompanhamento = (registro, metas) => {
         const metaValor = cleanValue(metaItem.Meta); 
         const tag = metaItem.Tag;
         
-        // Cria a chave MM/YYYY para comparação (Ex: 01/2025)
+        // Converte MM/AA para MM/YYYY
         const mesAnoCompleto = mesMeta && mesMeta.length === 5 
                              ? `${mesMeta.substring(0, 3)}20${mesMeta.substring(3, 5)}` 
                              : null;
@@ -101,36 +102,56 @@ const processMetasAcompanhamento = (registro, metas) => {
     return acompanhamentoFinal;
 };
 
+// --- FUNÇÃO DE PROCESSAMENTO DE ORGANIZADORES (Opções) ---
 const processOrganizadoresData = (organizadores) => {
-    // 1. Extrai a lista de Tags (Coluna 'Tag')
+    // Garante que o array não seja nulo
+    if (!organizadores) return { allTags: [], tipos: [], tagsWithColors: {} };
+    
+    // 1. Extrai a lista de Tags
     const availableTags = organizadores
         .map(org => org.Tag)
         .filter(tag => tag && tag.toString().trim() !== '');
-
-    // 2. Extrai a lista de Tipos (Coluna 'Tipo')
+    
+    // 2. Extrai a lista de Tipos (Coluna 'Tipo' do organizadores)
     const availableTypes = organizadores
         .map(org => org.Tipo)
-        // Filtra para remover vazios/nulos e garante que sejam únicos
         .filter((type, index, self) => type && type.toString().trim() !== '' && self.indexOf(type) === index);
-
+    
+    // 3. Cria um mapa de tags com suas cores
+    // Assumindo que a cor está em uma coluna chamada 'Cor' ou pode ser extraída do background da célula
+    // Por enquanto, vamos usar uma coluna 'Cor' se existir, senão usa cor padrão
+    const tagsWithColors = {};
+    organizadores.forEach(org => {
+        if (org.Tag && org.Tag.toString().trim() !== '') {
+            // Tenta ler a cor da coluna 'Cor', se não existir usa cor padrão
+            const cor = org.Cor || org.cor || '#4bc0c0'; // Cor padrão azul
+            tagsWithColors[org.Tag] = cor;
+        }
+    });
+    
     return {
-        allTags: [...new Set(availableTags)], // Lista de todas as tags disponíveis
-        tipos: availableTypes, // Lista de tipos (Receita, Despesa, etc.)
+        allTags: [...new Set(availableTags)], 
+        tipos: availableTypes,
+        tagsWithColors: tagsWithColors, // Mapa de tag -> cor
     };
 };
 
+// --- FUNÇÃO PRINCIPAL ---
 export const processAllData = (rawData) => {
-    const registroAggregated = processRegistroData(rawData.registro);
-    const metasAcompanhamento = processMetasAcompanhamento(rawData.registro, rawData.metas); 
-    
-    // NOVO: Processa as opções de Tags e Tipos
-    const organizadoresOptions = processOrganizadoresData(rawData.organizadores);
+    // CRÍTICO: Garante que rawData não seja nulo e que cada propriedade seja um array.
+    const registro = rawData?.registro || [];
+    const metas = rawData?.metas || [];
+    const organizadores = rawData?.organizadores || [];
+
+    const registroAggregated = processRegistroData(registro);
+    const metasAcompanhamento = processMetasAcompanhamento(registro, metas); 
+    const organizadoresOptions = processOrganizadoresData(organizadores);
 
     return {
-        rawData: rawData,
+        rawData: rawData, // Mantém os dados brutos
         registro: registroAggregated,
         metasAcompanhamento: metasAcompanhamento, 
-        organizadores: rawData.organizadores,
-        options: organizadoresOptions // NOVO: Opções de Tags e Tipos
+        organizadores: organizadores,
+        options: organizadoresOptions 
     };
 };

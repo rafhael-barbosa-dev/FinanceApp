@@ -19,6 +19,13 @@ const styles = {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
+        padding: 0, // Remove qualquer padding padrão
+        lineHeight: '60px', // Garante que o texto fique centralizado
+        aspectRatio: '1 / 1', // Garante proporção 1:1
+        minWidth: '60px',
+        minHeight: '60px',
+        maxWidth: '60px',
+        maxHeight: '60px',
     },
 };
 

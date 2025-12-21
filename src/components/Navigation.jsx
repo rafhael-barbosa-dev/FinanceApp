@@ -43,7 +43,10 @@ const Navigation = ({ active }) => (
             <span>🎯</span>
             <span>Metas</span>
         </Link>
-        {/* Adicionar as demais páginas aqui... */}
+        <Link to="/tags" style={{...styles.link, ...(active === 'Tags' ? styles.activeLink : {})}}>
+            <span>🏷️</span>
+            <span>Tags</span>
+        </Link>
     </nav>
 );
 
