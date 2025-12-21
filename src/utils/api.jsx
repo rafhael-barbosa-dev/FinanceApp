@@ -295,12 +295,10 @@ export const deleteOrganizadorFromBackend = async ({ rowNumber }) => {
 };
 
 // -------------------------------------------------------------------------
-// 6. FUNÇÃO PARA DELETAR MÚLTIPLOS REGISTROS (PREPARADO PARA BACKEND)
+// 6. FUNÇÃO PARA DELETAR MÚLTIPLOS REGISTROS
 // -------------------------------------------------------------------------
 
 export const deleteMultipleRecordsFromBackend = async ({ rowNumbers }) => {
-    // TODO: Implementar endpoint no backend: POST /api/delete-multiple-registros
-    // Por enquanto, retorna erro informando que precisa ser implementado
     const endpoint = `${BACKEND_RENDER_URL}/api/delete-multiple-registros`;
     
     const payload = { rowNumbers: Array.from(rowNumbers) };

@@ -364,18 +364,8 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
         try {
             const rowNumbers = Array.from(selectedRows);
             
-            // Tenta deletar múltiplos registros (pode falhar se o endpoint não existir ainda)
-            try {
-                await deleteMultipleRecordsFromBackend({ rowNumbers });
-                setMessage(`${selectedRows.size} registro(s) deletado(s) com sucesso!`);
-            } catch (deleteError) {
-                // Se o endpoint não existir, mostra mensagem informativa
-                if (deleteError.message.includes('404') || deleteError.message.includes('not found')) {
-                    setMessage(`Endpoint de deleção múltipla ainda não implementado no backend. ${selectedRows.size} registro(s) selecionado(s).`);
-                } else {
-                    throw deleteError;
-                }
-            }
+            await deleteMultipleRecordsFromBackend({ rowNumbers });
+            setMessage(`${selectedRows.size} registro(s) deletado(s) com sucesso!`);
             
             // Limpa seleção
             cancelSelection();
