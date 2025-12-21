@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App Financeiro</title>
+    <script>
+      // GitHub Pages SPA fallback
+      // Redireciona todas as rotas para index.html preservando o path
+      var path = window.location.pathname;
+      var search = window.location.search;
+      var hash = window.location.hash;
+      // Se não estiver na raiz, redireciona para index.html com o mesmo path
+      if (path !== '/' && !path.endsWith('.html')) {
+        window.location.replace('/index.html' + path + search + hash);
+      } else {
+        window.location.replace('/index.html' + search + hash);
+      }
+    </script>
+  </head>
+  <body>
+    <p>Redirecionando...</p>
+  </body>
+</html>
+
