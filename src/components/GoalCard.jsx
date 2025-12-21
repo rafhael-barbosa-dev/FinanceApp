@@ -110,7 +110,6 @@ const GoalCard = ({ tag, meta, realizado, tagColor }) => {
     const titleStyle = {
         margin: '0 0 10px 0',
         fontSize: '16px',
-        color: '#333',
         padding: '5px 10px',
         borderRadius: '5px',
         backgroundColor: color,
