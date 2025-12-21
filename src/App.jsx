@@ -59,7 +59,13 @@ function App() {
   if (error) return <div style={{ textAlign: 'center', padding: '50px', color: 'red', whiteSpace: 'pre-wrap' }}>{error}</div>;
 
   return (
-    <div className="App" style={{ paddingBottom: '70px' }}>
+    <div className="App" style={{ 
+      paddingBottom: '70px',
+      width: '100%',
+      maxWidth: '100vw',
+      overflowX: 'hidden',
+      boxSizing: 'border-box'
+    }}>
       <Routes>
         <Route path="/" element={<HomePage aggregatedData={aggregatedData} />} />
         <Route path="/registros" element={<RegistrosPage aggregatedData={aggregatedData} reloadData={reloadData} />} />

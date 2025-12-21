@@ -97,9 +97,9 @@ const DirectEditForm = ({ record, column, options, onSave, isSaving }) => {
             } else if (column === 'Valor') {
                 columnToUpdate = 'Valor';
                 valueToSave = cleanValue(localValue); // Converte para número
-            } else if (column === 'Descrição') {
-                // Backend espera 'Descricao' (sem til) conforme COLUMN_MAP
-                columnToUpdate = 'Descricao';
+            } else if (column === 'Descrição' || column === 'Descricao') {
+                // Backend agora espera 'Descrição' (com til) conforme COLUMN_MAP
+                columnToUpdate = 'Descrição';
                 valueToSave = localValue || '';
             } else if (column === 'Tipo') {
                 columnToUpdate = 'Tipo';

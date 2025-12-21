@@ -132,9 +132,9 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                 const tags = dataToSave.Tags || [];
                 const finalData = {
                     Data: dateToInput(dataToSave.Data), 
-                    Valor: cleanValue(dataToSave.Valor),
-                    Descricao: dataToSave.Descricao || dataToSave.Descrição || '', // Backend espera 'Descricao' (sem til)
                     Tipo: dataToSave.Tipo || '',
+                    Valor: cleanValue(dataToSave.Valor),
+                    Descrição: dataToSave.Descrição || dataToSave.Descricao || '', // Backend agora espera 'Descrição' (com til)
                     Tag_1: tags[0] || '',
                     Tag_2: tags[1] || '',
                     Tag_3: tags[2] || '',
@@ -168,10 +168,10 @@ const RegistrosPage = ({ aggregatedData, reloadData }) => {
                     const valorSource = dataToSave.Valor !== undefined ? dataToSave.Valor : dataToSave[columnToUpdate];
                     newValue = cleanValue(valorSource);
                     columnName = 'Valor';
-                } else if (columnToUpdate === 'Descricao') {
-                    // Backend espera 'Descricao' (sem til) conforme COLUMN_MAP
-                    newValue = dataToSave.Descricao || dataToSave.Descrição || dataToSave[columnToUpdate] || '';
-                    columnName = 'Descricao'; // Backend usa 'Descricao' no COLUMN_MAP
+                } else if (columnToUpdate === 'Descrição' || columnToUpdate === 'Descricao') {
+                    // Backend agora espera 'Descrição' (com til) conforme COLUMN_MAP
+                    newValue = dataToSave.Descrição || dataToSave.Descricao || dataToSave[columnToUpdate] || '';
+                    columnName = 'Descrição'; // Backend usa 'Descrição' no COLUMN_MAP
                 } else if (columnToUpdate === 'Tipo') {
                     // Para Tipo, usa o valor como string
                     newValue = dataToSave.Tipo || dataToSave[columnToUpdate] || '';
@@ -450,9 +450,10 @@ const styles = {
         backgroundColor: '#f4f4f9', 
         minHeight: 'calc(100vh - 70px)',
         width: '100%',
-        maxWidth: '100%',
+        maxWidth: '100vw', // Limita à largura da viewport
         boxSizing: 'border-box',
-        overflowX: 'hidden' // Previne scroll horizontal no container principal
+        overflowX: 'hidden', // Previne scroll horizontal no container principal
+        position: 'relative',
     },
     header: { 
         fontSize: '24px', 
@@ -517,8 +518,11 @@ const styles = {
         borderRadius: '8px',
         WebkitOverflowScrolling: 'touch',
         width: '100%',
-        maxWidth: '100%',
-        boxSizing: 'border-box'
+        maxWidth: '100%', // Não ultrapassa o container pai
+        boxSizing: 'border-box',
+        // Garante que o scroll seja apenas dentro deste container
+        marginLeft: 0,
+        marginRight: 0,
     },
     table: { 
         width: '100%', 

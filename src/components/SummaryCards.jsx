@@ -85,6 +85,8 @@ const SummaryCard = ({ title, value, color }) => {
         margin: '0 5px', // Espaço entre os cartões
         border: `2px solid ${color}`,
         minWidth: '120px', // Mínimo para mobile
+        maxWidth: 'calc(50% - 10px)', // Garante que não ultrapasse 50% menos margens
+        boxSizing: 'border-box', // Inclui padding e border no cálculo
     };
     
     return (
@@ -105,7 +107,9 @@ const SummaryCards = ({ receita, despesa }) => {
         justifyContent: 'space-between',
         margin: '0 -5px', // Compensa a margem dos cartões internos
         width: '100%',
+        maxWidth: '100%', // Garante que não ultrapasse o container pai
         boxSizing: 'border-box',
+        overflowX: 'hidden', // Previne scroll horizontal
     };
 
     return (

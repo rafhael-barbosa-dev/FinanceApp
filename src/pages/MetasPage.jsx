@@ -368,9 +368,10 @@ const styles = {
         backgroundColor: '#f4f4f9',
         minHeight: 'calc(100vh - 70px)',
         width: '100%',
-        maxWidth: '100%',
+        maxWidth: '100vw', // Limita à largura da viewport
         boxSizing: 'border-box',
-        overflowX: 'hidden' // Previne scroll horizontal no container principal
+        overflowX: 'hidden', // Previne scroll horizontal no container principal
+        position: 'relative',
     },
     header: { 
         fontSize: '24px', 
@@ -409,8 +410,11 @@ const styles = {
         borderRadius: '8px',
         WebkitOverflowScrolling: 'touch',
         width: '100%',
-        maxWidth: '100%',
-        boxSizing: 'border-box'
+        maxWidth: '100%', // Não ultrapassa o container pai
+        boxSizing: 'border-box',
+        // Garante que o scroll seja apenas dentro deste container
+        marginLeft: 0,
+        marginRight: 0,
     },
     table: { 
         width: '100%', 

@@ -81,8 +81,10 @@ const GoalCard = ({ tag, meta, realizado, tagColor }) => {
     };
     
     const cardStyle = {
-        flex: '0 0 auto', // Permite que o cartão use largura fixa e não quebre a linha
+        flex: '0 0 180px', // Largura fixa, não cresce nem encolhe
         width: '180px', // Largura fixa para mobile e rolagem horizontal
+        minWidth: '180px', // Garante largura mínima
+        maxWidth: '180px', // Garante largura máxima
         padding: '15px',
         marginRight: '10px', // Espaço entre os cartões
         backgroundColor: '#fff',
@@ -93,7 +95,8 @@ const GoalCard = ({ tag, meta, realizado, tagColor }) => {
         alignItems: 'center',
         textAlign: 'center',
         // Borda para destacar o estouro de limite
-        border: isEstourado ? '2px solid #ff6384' : '1px solid #4bc0c0', 
+        border: isEstourado ? '2px solid #ff6384' : '1px solid #4bc0c0',
+        boxSizing: 'border-box', // Inclui padding e border no cálculo da largura
     };
     
     const diferencaStyle = {

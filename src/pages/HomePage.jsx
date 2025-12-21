@@ -110,9 +110,10 @@ const HomePage = ({ aggregatedData }) => {
         minHeight: 'calc(100vh - 70px)',
         backgroundColor: '#f4f4f9',
         width: '100%',
-        maxWidth: '100%',
+        maxWidth: '100vw', // Limita à largura da viewport
         boxSizing: 'border-box',
         overflowX: 'hidden', // Previne scroll horizontal no container principal
+        position: 'relative',
     };
     
     const headerStyle = {
@@ -143,7 +144,11 @@ const HomePage = ({ aggregatedData }) => {
         WebkitOverflowScrolling: 'touch',
         scrollbarWidth: 'thin',
         width: '100%',
+        maxWidth: '100%', // Garante que não ultrapasse o container pai
         boxSizing: 'border-box',
+        // Remove qualquer margem que possa causar overflow
+        marginLeft: 0,
+        marginRight: 0,
     };
 
     // Se não há dados ou mês selecionado, mostra mensagem de carregamento
@@ -195,7 +200,13 @@ const HomePage = ({ aggregatedData }) => {
             </div>
             
             {/* Cartões Fixos de Receita/Despesa e Barra de Balanço - FORA da rolagem */}
-            <div style={{ width: '100%', marginBottom: '20px' }}>
+            <div style={{ 
+                width: '100%', 
+                maxWidth: '100%',
+                marginBottom: '20px',
+                boxSizing: 'border-box',
+                overflowX: 'hidden' // Garante que não cause scroll horizontal
+            }}>
                 <SummaryCards 
                     receita={receitaMensal} 
                     despesa={despesaMensal} 
@@ -203,7 +214,13 @@ const HomePage = ({ aggregatedData }) => {
             </div>
             
             {/* Cartões de Meta com Rolagem Horizontal - APENAS ESTES TÊM SCROLL */}
-            <div style={{ padding: '10px 0', width: '100%' }}>
+            <div style={{ 
+                padding: '10px 0', 
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                overflowX: 'hidden' // Previne overflow do container pai
+            }}>
                 <h2 style={{ fontSize: '18px', marginBottom: '15px' }}>Metas de {tituloFiltro}:</h2>
                 
                 <div style={cardsContainerStyle}>

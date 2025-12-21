@@ -24,10 +24,24 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden; /* Previne scroll horizontal no body */
+  box-sizing: border-box;
+}
+
+html {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden; /* Previne scroll horizontal no html */
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 h1 {
